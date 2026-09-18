@@ -1,12 +1,7 @@
-__pycache__/
-*.py[cod]
-.venv/
 venv/
-env/
 build/
 dist/
+*.pyc
+__pycache__/
 *.spec
-_preview_temp.pdf
 _capa_preview_temp.pdf
-*.tmp
-.DS_Store

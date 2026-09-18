@@ -3,7 +3,7 @@ import os
 import re
 import tempfile
 import traceback
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import pypdfium2 as pdfium
 import requests
 
@@ -30,6 +30,46 @@ try:
     import pdfplumber
 except ImportError:
     pdfplumber = None
+
+
+def upscale_cover_image(image_bytes, target_width=1600, target_height=2560):
+    """
+    Aplica upscale determinístico (sem IA) em capas baixadas via URL.
+    Utiliza interpolação Lanczos e filtro Unsharp Mask para recuperar a nitidez.
+    """
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        width, height = img.size
+
+        # Aplica o upscale apenas se a imagem baixada for menor que o alvo
+        if width < target_width or height < target_height:
+            ratio = min(target_width / width, target_height / height)
+            new_size = (int(width * ratio), int(height * ratio))
+
+            # 1. Redimensionamento de alta qualidade
+            img_resized = img.resize(new_size, Image.Resampling.LANCZOS)
+
+            # 2. Máscara de nitidez para evitar o aspecto desbotado/embaçado
+            img_sharp = img_resized.filter(
+                ImageFilter.UnsharpMask(radius=1.5, percent=120, threshold=3)
+            )
+
+            # 3. Leve ajuste de nitidez final
+            enhancer = ImageEnhance.Sharpness(img_sharp)
+            img_final = enhancer.enhance(1.2)
+
+            output = io.BytesIO()
+            img_final.save(output, format="JPEG", quality=95)
+            return output.getvalue()
+
+        return image_bytes
+    except Exception as e:
+        print(f"[Aviso Upscale]: Falha ao processar imagem ({e}). Usando original.")
+        return image_bytes
 
 
 class ThemeEngine:
@@ -332,10 +372,13 @@ class CapaHandler:
             origem_str = str(self.origem_capa).strip()
             if origem_str.startswith(("http://", "https://")):
                 try:
-                    res = requests.get(origem_str, timeout=3)
+                    res = requests.get(origem_str, timeout=5)
                     if res.status_code == 200:
+                        # Executa o UPSCALE apenas nas imagens vindas de URL
+                        image_upscaled_bytes = upscale_cover_image(res.content)
+                        
                         from reportlab.lib.utils import ImageReader
-                        img_data = io.BytesIO(res.content)
+                        img_data = io.BytesIO(image_upscaled_bytes)
                         img = ImageReader(img_data)
                         canvas_obj.drawImage(
                             img, 0, 0, width=largura, height=altura, preserveAspectRatio=False
@@ -346,6 +389,7 @@ class CapaHandler:
 
             elif os.path.exists(origem_str):
                 try:
+                    # Imagem selecionada localmente: usa o arquivo original sem upscale
                     canvas_obj.drawImage(
                         origem_str, 0, 0, width=largura, height=altura, preserveAspectRatio=False
                     )
