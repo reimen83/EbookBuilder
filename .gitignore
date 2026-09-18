@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+build/
+dist/
+*.spec
+_preview_temp.pdf
+_capa_preview_temp.pdf
+*.tmp
+.DS_Store
