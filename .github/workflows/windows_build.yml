@@ -1,0 +1,39 @@
+name: Compilar Executavel do Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Baixar Codigo do Repositorio
+      uses: actions/checkout@v3
+
+    - name: Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Instalar Dependencias no Windows Virtual
+      run: |
+        python -m pip install --upgrade pip
+        pip install customtkinter reportlab pypdfium2 pdfplumber python-docx requests Pillow pyinstaller
+
+    - name: Gerar Executavel com PyInstaller
+      run: |
+        pyinstaller --noconfirm --onedir --windowed --collect-all customtkinter --collect-all pdfplumber --collect-all pypdfium2 --hidden-import appdirs --hidden-import PIL --hidden-import reportlab --hidden-import pdfplumber --hidden-import pypdfium2 gui.py
+
+    - name: Compactar Executavel em ZIP
+      run: |
+        Compress-Archive -Path dist/gui/* -DestinationPath EbookBuilder_Windows.zip
+
+    - name: Criar Release no GitHub e Anexar o Zip
+      uses: softprops/action-gh-release@v1
+      with:
+        files: EbookBuilder_Windows.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
