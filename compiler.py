@@ -24,9 +24,9 @@ class EbookCompiler:
         tema="music_prod",
         variacao_capa=None,
     ):
-        self.arquivo_fonte = arquivo_fonte
-        self.arquivo_saida = arquivo_saida
-        self.capa_url = capa_url
+        self.arquivo_fonte = os.fspath(arquivo_fonte)
+        self.arquivo_saida = os.fspath(arquivo_saida)
+        self.capa_url = os.fspath(capa_url) if capa_url else capa_url
         self.variacao_capa = variacao_capa
         self.tema = tema
         self.theme_cfg = ThemeEngine.obter_estilos(self.tema)
@@ -65,7 +65,7 @@ class EbookCompiler:
 
     def _criar_documento(self, path):
         return SimpleDocTemplate(
-            path,
+            os.fspath(path),
             pagesize=A4,
             leftMargin=54,
             rightMargin=54,

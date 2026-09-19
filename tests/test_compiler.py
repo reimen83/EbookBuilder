@@ -162,3 +162,25 @@ def test_preview_usa_temporario_unico_e_limpa_arquivo(tmp_path: Path, monkeypatc
     assert compiler.gerar_preview_capa_fast()
     assert len(caminhos_temporarios) == 1
     assert not caminhos_temporarios[0].exists()
+
+
+def test_preview_usa_capa_local_e_compila_com_caminhos_path(tmp_path: Path):
+    fonte = tmp_path / "conteudo com espaço.md"
+    capa = tmp_path / "capa local.png"
+    saida = tmp_path / "ebook final.pdf"
+    fonte.write_text("# Título\n\n## Subtítulo\n\nConteúdo", encoding="utf-8")
+    Image.new("RGB", (100, 150), color="navy").save(capa)
+
+    compiler = EbookCompiler(
+        arquivo_fonte=fonte,
+        arquivo_saida=saida,
+        capa_url=capa,
+        tema="modern",
+    )
+
+    imagens = compiler.gerar_preview_capa_fast()
+    compiler.compilar()
+
+    assert imagens[0].size == (827, 1170)
+    assert saida.exists()
+    assert saida.read_bytes().startswith(b"%PDF")
