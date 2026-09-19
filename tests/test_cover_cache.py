@@ -1,4 +1,5 @@
 import io
+import os
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -61,3 +62,46 @@ def test_capa_handler_faz_fallback_quando_rede_falha(tmp_path: Path, monkeypatch
 
     assert canvas.rect.called
     assert cache.get("https://example.test/capa.jpg") is None
+
+
+def test_cover_cache_remove_capas_expiradas(tmp_path: Path):
+    cache = CoverCache(tmp_path / "covers")
+    caminho = cache.save("https://example.test/expirada.jpg", b"expirada")
+    os.utime(caminho, (100, 100))
+
+    resultado = cache.cleanup(max_age_seconds=10, now=200)
+
+    assert resultado["removed"] == 1
+    assert not caminho.exists()
+
+
+def test_cover_cache_respeita_limite_de_quantidade_e_tamanho(tmp_path: Path):
+    cache = CoverCache(tmp_path / "covers")
+    caminhos = [
+        cache.save(f"https://example.test/capa-{indice}.jpg", bytes([indice]) * 10)
+        for indice in range(3)
+    ]
+    for indice, caminho in enumerate(caminhos):
+        os.utime(caminho, (100 + indice, 100 + indice))
+
+    resultado = cache.cleanup(
+        max_age_seconds=None,
+        max_entries=2,
+        max_bytes=15,
+    )
+
+    assert resultado["removed"] == 2
+    assert resultado["remaining"] == 1
+    assert resultado["remaining_bytes"] <= 15
+    assert caminhos[-1].exists()
+
+
+def test_cover_cache_clear_remove_todas_as_capas(tmp_path: Path):
+    cache = CoverCache(tmp_path / "covers")
+    cache.save("https://example.test/a.jpg", b"a")
+    cache.save("https://example.test/b.jpg", b"b")
+
+    resultado = cache.clear()
+
+    assert resultado["removed"] == 2
+    assert resultado["remaining"] == 0
