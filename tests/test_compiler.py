@@ -30,6 +30,55 @@ def test_extrair_titulos_de_markdown(tmp_path: Path):
     assert subtitulo == "Um subtítulo"
 
 
+def test_extrair_titulos_de_texto_simples(tmp_path: Path):
+    arquivo = tmp_path / "conteudo.txt"
+    arquivo.write_text("Título automático\nSubtítulo automático\nTexto", encoding="utf-8")
+
+    titulo, subtitulo = SmartParser.extrair_titulos_documento(str(arquivo))
+
+    assert titulo == "Título automático"
+    assert subtitulo == "Subtítulo automático"
+
+
+def test_compilador_prioriza_titulos_manuais_e_usa_capa_do_tema(tmp_path: Path):
+    arquivo = tmp_path / "conteudo.md"
+    arquivo.write_text("# Título automático\n\n## Subtítulo automático", encoding="utf-8")
+
+    compilador = EbookCompiler(
+        arquivo_fonte=str(arquivo),
+        titulo_ebook="Título manual",
+        sub_titulo_ebook="Subtítulo manual",
+        tema="modern",
+    )
+
+    assert compilador.titulo_ebook == "Título manual"
+    assert compilador.sub_titulo_ebook == "Subtítulo manual"
+    assert compilador.capa_url is None
+    assert compilador.variacao_capa is None
+
+
+def test_compilador_completa_campo_manual_com_titulo_automatico(tmp_path: Path):
+    arquivo = tmp_path / "conteudo.md"
+    arquivo.write_text("# Título automático\n\n## Subtítulo automático", encoding="utf-8")
+
+    compilador = EbookCompiler(
+        arquivo_fonte=str(arquivo),
+        titulo_ebook="Título manual",
+    )
+
+    assert compilador.titulo_ebook == "Título manual"
+    assert compilador.sub_titulo_ebook == "Subtítulo automático"
+
+
+def test_capa_sem_imagem_explicita_usa_primeira_variacao_do_tema():
+    from covers import CapaHandler
+
+    capa = CapaHandler(tema="modern")
+    capa_padrao = ThemeEngine.obter_opcoes_capa_por_tema("modern")[0]["url"]
+
+    assert capa.origem_capa == capa_padrao
+
+
 def test_temas_têm_variacoes_e_estilos():
     opcoes = ThemeEngine.obter_opcoes_capa_por_tema("modern")
     estilos = ThemeEngine.obter_estilos("modern")

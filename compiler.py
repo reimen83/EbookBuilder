@@ -1,17 +1,16 @@
 import os
 import tempfile
-import pypdfium2 as pdfium
 
+import pypdfium2 as pdfium
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import PageBreak, SimpleDocTemplate, Spacer
 
-
-from themes import ThemeEngine
-from parsers import SmartParser
-from covers import CapaHandler, upscale_cover_image
-from pagination import NumberedCanvas
-from renderer import MarkdownRenderer
+from covers import CapaHandler
 from document_readers import DocumentReader
+from pagination import NumberedCanvas
+from parsers import SmartParser
+from renderer import MarkdownRenderer
+from themes import ThemeEngine
 
 
 class EbookCompiler:
@@ -36,7 +35,9 @@ class EbookCompiler:
 
         titulo_auto, subtitulo_auto = SmartParser.extrair_titulos_documento(arquivo_fonte)
         self.titulo_ebook = titulo_ebook.strip() if titulo_ebook.strip() else titulo_auto
-        self.sub_titulo_ebook = sub_titulo_ebook.strip() if sub_titulo_ebook.strip() else subtitulo_auto
+        self.sub_titulo_ebook = (
+            sub_titulo_ebook.strip() if sub_titulo_ebook.strip() else subtitulo_auto
+        )
 
     def _converter_inline_formatting(self, texto):
         return self.renderer._converter_inline_formatting(texto)
@@ -53,35 +54,8 @@ class EbookCompiler:
     def _parse_pdf(self, caminho_pdf):
         return self.document_reader.parse_pdf(caminho_pdf)
 
-    def compilar(self):
-        if not os.path.exists(self.arquivo_fonte):
-            raise FileNotFoundError(f"Arquivo não encontrado: {self.arquivo_fonte}")
-
-        extensao = os.path.splitext(self.arquivo_fonte)[1].lower()
-
-        if extensao in [".md", ".markdown"]:
-            with open(self.arquivo_fonte, "r", encoding="utf-8") as f:
-                conteudo_flowables = self._parse_markdown(f.read())
-        elif extensao == ".txt":
-            with open(self.arquivo_fonte, "r", encoding="utf-8") as f:
-                conteudo_flowables = self._parse_markdown(SmartParser.inferir_estrutura(f.read()))
-        elif extensao == ".docx":
-            conteudo_flowables = self._parse_docx(self.arquivo_fonte)
-        elif extensao == ".pdf":
-            conteudo_flowables = self._parse_pdf(self.arquivo_fonte)
-        else:
-            raise ValueError(f"Extensão não suportada: {extensao}")
-
-        doc = SimpleDocTemplate(
-            self.arquivo_saida,
-            pagesize=A4,
-            leftMargin=54,
-            rightMargin=54,
-            topMargin=72,
-            bottomMargin=72,
-        )
-
-        capa_handler = CapaHandler(
+    def _criar_capa_handler(self):
+        return CapaHandler(
             origem_capa=self.capa_url,
             variacao_capa=self.variacao_capa,
             titulo=self.titulo_ebook,
@@ -89,10 +63,40 @@ class EbookCompiler:
             tema=self.tema,
         )
 
-        def criar_canvas_com_tema(*args, **kwargs):
-            canvas_inst = NumberedCanvas(*args, **kwargs)
-            canvas_inst.tema_nome = self.tema
-            return canvas_inst
+    def _criar_documento(self, path):
+        return SimpleDocTemplate(
+            path,
+            pagesize=A4,
+            leftMargin=54,
+            rightMargin=54,
+            topMargin=72,
+            bottomMargin=72,
+        )
+
+    def _criar_canvas_com_tema(self, *args, **kwargs):
+        canvas_inst = NumberedCanvas(*args, **kwargs)
+        canvas_inst.tema_nome = self.tema
+        return canvas_inst
+
+    def _carregar_conteudo(self):
+        if not os.path.exists(self.arquivo_fonte):
+            raise FileNotFoundError(f"Arquivo não encontrado: {self.arquivo_fonte}")
+
+        extensao = os.path.splitext(self.arquivo_fonte)[1].lower()
+        if extensao == ".txt":
+            with open(self.arquivo_fonte, "r", encoding="utf-8") as f:
+                texto = f.read()
+            return self._parse_markdown(SmartParser.inferir_estrutura(texto))
+
+        if extensao in [".md", ".markdown", ".docx", ".pdf"]:
+            return self.document_reader.parse_file(self.arquivo_fonte)
+
+        raise ValueError(f"Extensão não suportada: {extensao}")
+
+    def compilar(self):
+        conteudo_flowables = self._carregar_conteudo()
+        doc = self._criar_documento(self.arquivo_saida)
+        capa_handler = self._criar_capa_handler()
 
         story = [Spacer(1, 400), PageBreak()]
         story.extend(conteudo_flowables)
@@ -101,7 +105,7 @@ class EbookCompiler:
             story,
             onFirstPage=capa_handler.desenhar_capa,
             onLaterPages=capa_handler.desenhar_fundo_paginas,
-            canvasmaker=criar_canvas_com_tema,
+            canvasmaker=self._criar_canvas_com_tema,
         )
 
     def gerar_preview_capa_fast(self, dpi=100):
@@ -112,23 +116,8 @@ class EbookCompiler:
         os.close(file_descriptor)
 
         try:
-            doc = SimpleDocTemplate(
-                tmp_pdf_path,
-                pagesize=A4,
-                leftMargin=54,
-                rightMargin=54,
-                topMargin=72,
-                bottomMargin=72,
-            )
-
-            capa_handler = CapaHandler(
-                origem_capa=self.capa_url,
-                variacao_capa=self.variacao_capa,
-                titulo=self.titulo_ebook,
-                sub_titulo=self.sub_titulo_ebook,
-                tema=self.tema,
-            )
-
+            doc = self._criar_documento(tmp_pdf_path)
+            capa_handler = self._criar_capa_handler()
             story = [Spacer(1, 400)]
 
             doc.build(
@@ -141,7 +130,6 @@ class EbookCompiler:
             page = pdf[0]
             image_pil = page.render(scale=dpi / 72).to_pil()
             pdf.close()
-
             return [image_pil]
         finally:
             if os.path.exists(tmp_pdf_path):
