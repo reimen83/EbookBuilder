@@ -1,10 +1,15 @@
-import os
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from PIL import Image
 from compiler import EbookCompiler, ThemeEngine
+from validation import (
+    build_output_path,
+    validate_cover_file,
+    validate_destination_directory,
+    validate_source_file,
+)
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -29,6 +34,7 @@ class EbookBuilderGUI(ctk.CTk):
         self.url_capa = tk.StringVar()
 
         self.preview_ctk_image = None
+        self._preview_generation = 0
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -256,69 +262,111 @@ class EbookBuilderGUI(ctk.CTk):
         return self.mapa_variacoes_atuais.get(nome_selecionado, None)
 
     def _executar_preview_direto(self):
-        try:
-            fonte = self.caminho_arquivo_fonte.get().strip()
-            tema_chave = self.mapa_temas.get(self.combo_tema.get(), "modern")
-            variacao_id = self._obter_id_variacao_selecionada()
-            capa = self.url_capa.get().strip() or self.caminho_capa_local.get().strip()
-            titulo = self.entry_titulo.get().strip()
-            subtitulo = self.entry_subtitulo.get().strip()
+        self._preview_generation += 1
+        generation = self._preview_generation
+        fonte = self.caminho_arquivo_fonte.get().strip()
+        tema_chave = self.mapa_temas.get(self.combo_tema.get(), "modern")
+        variacao_id = self._obter_id_variacao_selecionada()
+        capa = self.url_capa.get().strip() or self.caminho_capa_local.get().strip()
+        titulo = self.entry_titulo.get().strip()
+        subtitulo = self.entry_subtitulo.get().strip()
 
+        self.lbl_imagem_preview.configure(
+            text="⏳ Gerando preview da capa...",
+            image=None,
+        )
+
+        threading.Thread(
+            target=self._gerar_preview_bg,
+            args=(generation, fonte, capa, titulo, subtitulo, tema_chave, variacao_id),
+            daemon=True,
+        ).start()
+
+    def _gerar_preview_bg(self, generation, fonte, capa, titulo, subtitulo, tema, variacao):
+        try:
             compiler = EbookCompiler(
                 arquivo_fonte=fonte,
                 arquivo_saida="",
                 capa_url=capa,
                 titulo_ebook=titulo,
                 sub_titulo_ebook=subtitulo,
-                tema=tema_chave,
-                variacao_capa=variacao_id
+                tema=tema,
+                variacao_capa=variacao,
             )
             imagens_pil = compiler.gerar_preview_capa_fast(dpi=100)
+            imagem = imagens_pil[0].copy() if imagens_pil else None
+            self.after(0, self._aplicar_preview, generation, imagem)
+        except Exception as exc:
+            self.after(0, self._preview_erro, generation, str(exc))
 
-            if imagens_pil:
-                img_pil = imagens_pil[0].copy()
-                largura_max = 460
-                altura_max = 650
-                img_pil.thumbnail((largura_max, altura_max), Image.Resampling.LANCZOS)
+    def _aplicar_preview(self, generation, imagem):
+        if generation != self._preview_generation:
+            return
+        if imagem is None:
+            self.lbl_imagem_preview.configure(
+                text="Nenhuma imagem de capa foi gerada.",
+                image=None,
+            )
+            return
 
-                self.preview_ctk_image = ctk.CTkImage(
-                    light_image=img_pil,
-                    dark_image=img_pil,
-                    size=(img_pil.width, img_pil.height)
-                )
+        largura_max = 460
+        altura_max = 650
+        imagem.thumbnail((largura_max, altura_max), Image.Resampling.LANCZOS)
+        self.preview_ctk_image = ctk.CTkImage(
+            light_image=imagem,
+            dark_image=imagem,
+            size=(imagem.width, imagem.height),
+        )
+        self.lbl_imagem_preview.configure(image=self.preview_ctk_image, text="")
 
-                self.lbl_imagem_preview.configure(image=self.preview_ctk_image, text="")
-        except Exception as e:
-            self.lbl_imagem_preview.configure(text=f"❌ Erro ao gerar capa:\n{e}", image=None)
+    def _preview_erro(self, generation, mensagem):
+        if generation != self._preview_generation:
+            return
+        self.lbl_imagem_preview.configure(
+            text=f"❌ Erro ao gerar capa:\n{mensagem}",
+            image=None,
+        )
 
     def _procurar_fonte(self):
         caminho = filedialog.askopenfilename(filetypes=[("Todos os Formatos Suportados", "*.md *.docx *.pdf *.txt")])
         if caminho:
-            self.caminho_arquivo_fonte.set(caminho)
-            if not self.pasta_destino.get():
-                self.pasta_destino.set(os.path.dirname(caminho))
-            self._executar_preview_direto()
+            try:
+                fonte = validate_source_file(caminho)
+                self.caminho_arquivo_fonte.set(str(fonte))
+                if not self.pasta_destino.get():
+                    self.pasta_destino.set(str(fonte.parent))
+                self._executar_preview_direto()
+            except (FileNotFoundError, ValueError) as exc:
+                messagebox.showerror("Arquivo inválido", str(exc))
 
     def _procurar_destino(self):
         pasta = filedialog.askdirectory()
-        if pasta: self.pasta_destino.set(pasta)
+        if pasta:
+            try:
+                self.pasta_destino.set(str(validate_destination_directory(pasta)))
+            except (FileNotFoundError, ValueError) as exc:
+                messagebox.showerror("Destino inválido", str(exc))
 
     def _procurar_capa_local(self):
         caminho = filedialog.askopenfilename(filetypes=[("Imagens", "*.png *.jpg *.jpeg")])
         if caminho:
-            self.caminho_capa_local.set(caminho)
-            self.url_capa.set("")
-            self._executar_preview_direto()
+            try:
+                capa = validate_cover_file(caminho)
+                self.caminho_capa_local.set(str(capa))
+                self.url_capa.set("")
+                self._executar_preview_direto()
+            except (FileNotFoundError, ValueError) as exc:
+                messagebox.showerror("Capa inválida", str(exc))
 
     def _iniciar_compilacao(self):
         arquivo_fonte = self.caminho_arquivo_fonte.get().strip()
-        pasta_dest = self.pasta_destino.get().strip() or os.path.dirname(arquivo_fonte)
-        if not arquivo_fonte:
-            messagebox.showerror("Erro", "Selecione um arquivo de fonte.")
+        pasta_dest = self.pasta_destino.get().strip()
+        try:
+            fonte = validate_source_file(arquivo_fonte)
+            caminho_saida = build_output_path(fonte, pasta_dest or fonte.parent)
+        except (FileNotFoundError, ValueError) as exc:
+            messagebox.showerror("Não é possível gerar o e-book", str(exc))
             return
-
-        nome_base = os.path.splitext(os.path.basename(arquivo_fonte))[0] + "_ebook.pdf"
-        caminho_saida = os.path.join(pasta_dest, nome_base)
 
         self.btn_gerar.configure(state="disabled")
         self.lbl_status.configure(text="⏳ Gerando e-book em PDF...", text_color="#F59E0B")
@@ -366,5 +414,10 @@ class EbookBuilderGUI(ctk.CTk):
         messagebox.showerror("Erro", msg)
 
 
-if __name__ == "__main__":
+def main():
+    """Inicia a aplicação gráfica do EbookBuilder."""
     EbookBuilderGUI().mainloop()
+
+
+if __name__ == "__main__":
+    main()

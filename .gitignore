@@ -1,7 +1,7 @@
 venv/
+.venv/
 build/
 dist/
 *.pyc
 __pycache__/
 *.spec
-_capa_preview_temp.pdf

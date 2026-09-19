@@ -1,57 +1,89 @@
-# 📄 EbookBuilder — PDF Editor & ReportLab Suite
+# EbookBuilder — Gerador local de e-books em PDF
 
-Uma aplicação desktop desenvolvida em Python para conversão, diagramação, estilização e compilação de documentos PDF/E-books utilizando ReportLab, CustomTkinter e pdfplumber.
+Aplicação desktop desenvolvida em Python para conversão, diagramação, estilização e compilação de documentos em e-books PDF usando ReportLab, CustomTkinter e pdfplumber.
 
----
+O EbookBuilder foi projetado para processamento local: os arquivos do usuário não precisam ser enviados para um servidor ou abertos em um navegador.
 
-## 🚀 Funcionalidades
+## Funcionalidades
 
-- **Automação de Conteúdo para PDF:** Converte arquivos de texto (.md, .docx, .txt, .pdf) em e-books diagramados e estilizados.
-- **🎨 Variações Dinâmicas de Capa (ThemeEngine):** Seleção de temas visuais e variações de background em tempo real, permitindo alternar estilos visuais sem quebrar o layout ou a tipografia.
-- **👁️ Preview em Tempo Real:** Pré-visualização instantânea da capa e do documento diretamente na interface gráfica antes da compilação final.
-- **PDF → Python (.py):** Extrai a estrutura e o conteúdo de arquivos PDF existentes, transformando-os em um script Python editável baseado na biblioteca ReportLab.
-- **Python (.py) → PDF Final:** Recompila o código Python modificado gerando um novo documento PDF estilizado.
-- **Interface Gráfica Moderna (GUI):** Interface intuitiva e responsiva construída com **CustomTkinter**, facilitando a navegação, seleção de temas e visualização de arquivos.
-- **Abertura Rápida de Editor:** Botão integrado para abrir o script diretamente no editor padrão do sistema.
+- Conversão de arquivos `.md`, `.docx`, `.txt` e `.pdf` em e-books diagramados.
+- Temas visuais e variações de capa.
+- Preview da capa antes da compilação.
+- Extração de títulos e subtítulos dos documentos.
+- Geração de PDF com capa, estilos, cabeçalho, rodapé e paginação.
+- Execução como aplicação desktop no Linux e no Windows.
 
----
+## Execução no Linux a partir do código-fonte
 
-## 🛠️ Tecnologias Utilizadas
+Recomenda-se Python 3.10 ou mais recente.
 
-- **Python 3**
-- **CustomTkinter & Tkinter** (Interface gráfica moderna e responsiva)
-- **ReportLab** (Geração, diagramação e estilização de PDF)
-- **pdfplumber** (Extração de texto e estrutura de PDF)
-- **Pillow (PIL)** (Processamento e renderização do preview de imagem)
-- **PyInstaller** (Compilação para executável desktop)
+```bash
+sudo apt update
+sudo apt install python3 python3-venv python3-tk
 
----
+git clone https://github.com/reimen83/EbookBuilder.git
+cd EbookBuilder
 
-## 🎨 Temas e Variações de Capa Suportados
-
-| Tema Visual | ID do Tema | Variações de Capa |
-| :--- | :--- | :--- |
-| **🎛️ Produção Musical** | `music_prod` | Studio Dark, Vintage Analog, Waveform Pattern, Neon Synth |
-| **💰 Finanças & Negócios** | `finance_gold` | Gold Accent, Slate Solid, Geometric Corporate, Minimal Dark |
-| **🤖 IA & Produtividade** | `ai_productivity` | Cyber Violet Gradient, Tech Grid, Deep Obsidian, Neon Edge |
-| **🌿 Saúde & Fitness** | `health_wellness` | Earthy Sage, Organic Soft, Clean Minimal, Botanical Gradient |
-| **🧠 Desenvolv. Pessoal** | `self_help` | Warm Terracotta, Warm Sunset, Minimal Cream, Soft Earth |
-| **⚡ Dark Tech** | `dark_tech` | Obsidian Cyan, Monokai Dark, Terminal Grid, Clean Obsidian |
-| **📜 Editorial** | `editorial` | Classic Cream, Vintage Paper, Clean White, Book Serif |
-| **🔹 Moderno** | `modern` | Corporate Blue, Soft Gray, Bold Modern, Minimal Slate |
-
----
-
-## 🔧 Como Executar
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e .
 
 python gui.py
+```
 
-### 1. Pré-requisitos
+Depois da instalação, também é possível executar pelo ponto de entrada do pacote:
 
-Instale as dependências executando:
-- bash
-- pip install reportlab pdfplumber customtkinter pillow
+```bash
+ebookbuilder
+```
 
----
+## Desenvolvimento e testes
 
-- Desenvolvido por Reinaldo H Neto.
+Para instalar as ferramentas de desenvolvimento:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+Para executar os testes:
+
+```bash
+python -m pytest
+```
+
+A suíte de testes cobre o parser de conteúdo, a extração de títulos, os temas e a geração básica de PDF.
+
+## Dependências principais
+
+- Python 3
+- CustomTkinter e Tkinter
+- ReportLab
+- pdfplumber
+- pypdfium2
+- python-docx
+- Pillow
+- requests
+- PyInstaller, utilizado no empacotamento de executáveis
+
+## Temas disponíveis
+
+| Tema | Identificador |
+|---|---|
+| Produção Musical | `music_prod` |
+| Finanças e Negócios | `finance_gold` |
+| IA e Produtividade | `ai_productivity` |
+| Saúde e Bem-estar | `health_wellness` |
+| Desenvolvimento Pessoal | `self_help` |
+| Dark Tech | `dark_tech` |
+| Editorial | `editorial` |
+| Moderno | `modern` |
+
+## Direção do projeto
+
+O projeto continuará prioritariamente como uma aplicação desktop local. A separação entre interface e núcleo de compilação será feita gradualmente para permitir builds confiáveis para Linux e Windows, testes automatizados e funcionamento offline sempre que possível.
+
+## Licença
+
+Consulte o repositório para informações de licença.

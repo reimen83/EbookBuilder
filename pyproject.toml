@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ebookbuilder"
+version = "1.1.0.dev0"
+description = "Aplicação desktop local para criação automatizada de e-books em PDF"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "customtkinter>=5.2,<6",
+    "pillow>=10,<12",
+    "reportlab>=4,<5",
+    "pypdfium2>=4,<5",
+    "pdfplumber>=0.11,<1",
+    "python-docx>=1,<2",
+    "requests>=2.31,<3",
+]
+
+[project.scripts]
+ebookbuilder = "gui:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+exclude = ["build", "dist", "venv"]
+
+[tool.setuptools]
+py-modules = ["gui", "compiler", "parsers", "themes", "covers", "cover_cache", "pagination", "renderer", "document_readers", "validation"]
+
+[tool.setuptools.package-data]
+"*" = ["assets/**/*"]
