@@ -1,5 +1,6 @@
 import threading
 import tkinter as tk
+from queue import Empty, Queue
 from dataclasses import dataclass
 from tkinter import filedialog, messagebox
 
@@ -72,6 +73,7 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_generation = 0
         self._preview_signature = None
         self._preview_thread = None
+        self._preview_results = Queue()
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -89,6 +91,7 @@ class EbookBuilderGUI(ctk.CTk):
         self._criar_menu_contexto()
         self._construir_interface()
         self.bind("<Button-1>", lambda event: self._fechar_menu_contexto())
+        self.after(50, self._processar_resultados_preview)
 
     def _criar_menu_contexto(self):
         self.menu_contexto = tk.Menu(self, tearoff=0)
@@ -358,12 +361,24 @@ class EbookBuilderGUI(ctk.CTk):
             )
             imagens_pil = compiler.gerar_preview_capa_fast(dpi=100)
             imagem = imagens_pil[0].copy() if imagens_pil else None
-            if generation != self._preview_generation:
-                return
-            self.after(0, self._aplicar_preview, generation, imagem)
+            self._preview_results.put((generation, imagem, None))
         except Exception as exc:
-            if generation == self._preview_generation:
-                self.after(0, self._preview_erro, generation, str(exc))
+            self._preview_results.put((generation, None, str(exc)))
+
+    def _processar_resultados_preview(self):
+        try:
+            while True:
+                generation, imagem, erro = self._preview_results.get_nowait()
+                if generation != self._preview_generation:
+                    continue
+                if erro:
+                    self._preview_erro(generation, erro)
+                else:
+                    self._aplicar_preview(generation, imagem)
+        except Empty:
+            pass
+        finally:
+            self.after(50, self._processar_resultados_preview)
 
     def _aplicar_preview(self, generation, imagem):
         if generation != self._preview_generation:
