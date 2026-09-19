@@ -30,7 +30,7 @@ line-length = 100
 exclude = ["build", "dist", "venv"]
 
 [tool.setuptools]
-py-modules = ["gui", "compiler", "parsers", "themes", "covers", "cover_cache", "pagination", "renderer", "document_readers", "validation"]
+py-modules = ["gui", "compiler", "parsers", "themes", "covers", "cover_cache", "pagination", "renderer", "document_readers", "validation", "preview_state"]
 
 [tool.setuptools.package-data]
 "*" = ["assets/**/*"]

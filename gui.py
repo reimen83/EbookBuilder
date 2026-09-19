@@ -4,6 +4,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from PIL import Image
 from compiler import EbookCompiler, ThemeEngine
+from preview_state import build_preview_signature
 from validation import (
     build_output_path,
     validate_cover_file,
@@ -35,6 +36,8 @@ class EbookBuilderGUI(ctk.CTk):
 
         self.preview_ctk_image = None
         self._preview_generation = 0
+        self._preview_signature = None
+        self._preview_thread = None
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -207,7 +210,7 @@ class EbookBuilderGUI(ctk.CTk):
         self._atualizar_opcoes_variacao(self.mapa_temas[self.combo_tema.get()])
 
         # BOTÃO PREVIEW
-        self.btn_preview = ctk.CTkButton(frame_esquerda, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=self._executar_preview_direto)
+        self.btn_preview = ctk.CTkButton(frame_esquerda, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=lambda: self._executar_preview_direto(force=True))
         self.btn_preview.pack(fill="x", padx=5, pady=(8, 4))
 
         # BOTÃO GERAR COMPLETO
@@ -261,26 +264,35 @@ class EbookBuilderGUI(ctk.CTk):
         nome_selecionado = self.combo_variacao.get()
         return self.mapa_variacoes_atuais.get(nome_selecionado, None)
 
-    def _executar_preview_direto(self):
-        self._preview_generation += 1
-        generation = self._preview_generation
+    def _executar_preview_direto(self, force=False):
         fonte = self.caminho_arquivo_fonte.get().strip()
         tema_chave = self.mapa_temas.get(self.combo_tema.get(), "modern")
         variacao_id = self._obter_id_variacao_selecionada()
         capa = self.url_capa.get().strip() or self.caminho_capa_local.get().strip()
         titulo = self.entry_titulo.get().strip()
         subtitulo = self.entry_subtitulo.get().strip()
+        assinatura = build_preview_signature(
+            fonte, capa, titulo, subtitulo, tema_chave, variacao_id
+        )
+
+        if not force and assinatura == self._preview_signature:
+            return
+
+        self._preview_signature = assinatura
+        self._preview_generation += 1
+        generation = self._preview_generation
 
         self.lbl_imagem_preview.configure(
             text="⏳ Gerando preview da capa...",
             image=None,
         )
 
-        threading.Thread(
+        self._preview_thread = threading.Thread(
             target=self._gerar_preview_bg,
             args=(generation, fonte, capa, titulo, subtitulo, tema_chave, variacao_id),
             daemon=True,
-        ).start()
+        )
+        self._preview_thread.start()
 
     def _gerar_preview_bg(self, generation, fonte, capa, titulo, subtitulo, tema, variacao):
         try:
