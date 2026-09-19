@@ -72,6 +72,7 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_generation = 0
         self._preview_signature = None
         self._preview_thread = None
+        self._preview_lock = threading.Lock()
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -343,21 +344,28 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_thread.start()
 
     def _gerar_preview_bg(self, generation, config):
-        try:
-            compiler = EbookCompiler(
-                arquivo_fonte=config.origem,
-                arquivo_saida="",
-                capa_url=config.capa_ativa,
-                titulo_ebook=config.titulo_ativo,
-                sub_titulo_ebook=config.subtitulo_ativo,
-                tema=config.tema_ativo,
-                variacao_capa=config.variacao,
-            )
-            imagens_pil = compiler.gerar_preview_capa_fast(dpi=100)
-            imagem = imagens_pil[0].copy() if imagens_pil else None
-            self.after(0, self._aplicar_preview, generation, imagem)
-        except Exception as exc:
-            self.after(0, self._preview_erro, generation, str(exc))
+        with self._preview_lock:
+            if generation != self._preview_generation:
+                return
+
+            try:
+                compiler = EbookCompiler(
+                    arquivo_fonte=config.origem,
+                    arquivo_saida="",
+                    capa_url=config.capa_ativa,
+                    titulo_ebook=config.titulo_ativo,
+                    sub_titulo_ebook=config.subtitulo_ativo,
+                    tema=config.tema_ativo,
+                    variacao_capa=config.variacao,
+                )
+                imagens_pil = compiler.gerar_preview_capa_fast(dpi=100)
+                imagem = imagens_pil[0].copy() if imagens_pil else None
+                if generation != self._preview_generation:
+                    return
+                self.after(0, self._aplicar_preview, generation, imagem)
+            except Exception as exc:
+                if generation == self._preview_generation:
+                    self.after(0, self._preview_erro, generation, str(exc))
 
     def _aplicar_preview(self, generation, imagem):
         if generation != self._preview_generation:
