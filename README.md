@@ -49,5 +49,9 @@ python gui.py
 ### 1. Pré-requisitos
 
 Instale as dependências executando:
-```bash
-pip install reportlab pdfplumber customtkinter pillow
+- bash
+- pip install reportlab pdfplumber customtkinter pillow
+
+---
+
+- Desenvolvido por Reinaldo H Neto.
