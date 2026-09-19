@@ -45,20 +45,15 @@ def upscale_cover_image(image_bytes, target_width=1600, target_height=2560):
 
         width, height = img.size
 
-        # Aplica o upscale apenas se a imagem baixada for menor que o alvo
         if width < target_width or height < target_height:
             ratio = min(target_width / width, target_height / height)
             new_size = (int(width * ratio), int(height * ratio))
 
-            # 1. Redimensionamento de alta qualidade
             img_resized = img.resize(new_size, Image.Resampling.LANCZOS)
-
-            # 2. Máscara de nitidez para evitar o aspecto desbotado/embaçado
             img_sharp = img_resized.filter(
                 ImageFilter.UnsharpMask(radius=1.5, percent=120, threshold=3)
             )
 
-            # 3. Leve ajuste de nitidez final
             enhancer = ImageEnhance.Sharpness(img_sharp)
             img_final = enhancer.enhance(1.2)
 
@@ -73,16 +68,139 @@ def upscale_cover_image(image_bytes, target_width=1600, target_height=2560):
 
 
 class ThemeEngine:
-    CAPAS_PADRAO = {
-        "music_prod": "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000",
-        "finance_gold": "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?q=80&w=1000",
-        "ai_productivity": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000",
-        "health_wellness": "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1000",
-        "self_help": "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1000",
-        "dark_tech": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000",
-        "editorial": "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=1000",
-        "modern": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1000",
+    # Coleção de variações de capas organizadas por tema
+    VARIACAO_CAPAS = {
+        "music_prod": [
+            {
+                "id": "studio_1",
+                "nome": "Estúdio & Mesa de Som",
+                "url": "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000",
+            },
+            {
+                "id": "guitar_1",
+                "nome": "Guitarra & Leds",
+                "url": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1000",
+            },
+            {
+                "id": "headphones_1",
+                "nome": "Headphones Neon",
+                "url": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000",
+            },
+        ],
+        "finance_gold": [
+            {
+                "id": "gold_1",
+                "nome": "Gráficos & Ouro",
+                "url": "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?q=80&w=1000",
+            },
+            {
+                "id": "market_2",
+                "nome": "Mercado Financeiro Dark",
+                "url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=1000",
+            },
+            {
+                "id": "coins_3",
+                "nome": "Investimentos Clássico",
+                "url": "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=1000",
+            },
+        ],
+        "ai_productivity": [
+            {
+                "id": "abstract_ai",
+                "nome": "Rede Neural Abstrata",
+                "url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000",
+            },
+            {
+                "id": "cyber_desk",
+                "nome": "Futurista Minimalista",
+                "url": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?q=80&w=1000",
+            },
+        ],
+        "health_wellness": [
+            {
+                "id": "nature_1",
+                "nome": "Folhas & Natureza",
+                "url": "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1000",
+            },
+            {
+                "id": "yoga_2",
+                "nome": "Bem-Estar & Zen",
+                "url": "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1000",
+            },
+        ],
+        "self_help": [
+            {
+                "id": "zen_1",
+                "nome": "Meditação & Foco",
+                "url": "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1000",
+            },
+            {
+                "id": "mountain_2",
+                "nome": "Horizonte & Conquista",
+                "url": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1000",
+            },
+        ],
+        "dark_tech": [
+            {
+                "id": "code_1",
+                "nome": "Matriz de Código",
+                "url": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000",
+            },
+            {
+                "id": "hardware_2",
+                "nome": "Circuito Neon",
+                "url": "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000",
+            },
+        ],
+        "editorial": [
+            {
+                "id": "book_1",
+                "nome": "Livro & Papel Clássico",
+                "url": "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=1000",
+            },
+            {
+                "id": "typewriter_2",
+                "nome": "Máquina de Escrever",
+                "url": "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?q=80&w=1000",
+            },
+        ],
+        "modern": [
+            {
+                "id": "arch_1",
+                "nome": "Arquitetura Moderna",
+                "url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1000",
+            },
+            {
+                "id": "gradient_2",
+                "nome": "Geométrico Suave",
+                "url": "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=1000",
+            },
+        ],
     }
+
+    @classmethod
+    def obter_opcoes_capa_por_tema(cls, tema="modern"):
+        """Retorna a lista de capas disponíveis para o tema selecionado."""
+        return cls.VARIACAO_CAPAS.get(tema, cls.VARIACAO_CAPAS["modern"])
+
+    @classmethod
+    def obter_url_capa(cls, tema="modern", variacao_id_ou_url=None):
+        """
+        Retorna a URL final da capa com base no tema e no ID da variação ou URL enviada.
+        """
+        if not variacao_id_ou_url:
+            capas = cls.obter_opcoes_capa_por_tema(tema)
+            return capas[0]["url"]
+
+        if str(variacao_id_ou_url).startswith(("http://", "https://")) or os.path.exists(str(variacao_id_ou_url)):
+            return variacao_id_ou_url
+
+        capas = cls.obter_opcoes_capa_por_tema(tema)
+        for capa in capas:
+            if capa["id"] == variacao_id_ou_url or capa["nome"] == variacao_id_ou_url:
+                return capa["url"]
+
+        return capas[0]["url"]
 
     @staticmethod
     def obter_estilos(nome_tema="modern"):
@@ -227,8 +345,8 @@ class ThemeEngine:
         table_col_style = ParagraphStyle(
             "ThemeTableCol",
             parent=body_style,
-            fontSize=9,
-            leading=13,
+            fontSize=9.5,
+            leading=14,
             spaceAfter=0,
         )
 
@@ -351,17 +469,17 @@ class SmartParser:
 
 
 class CapaHandler:
-    def __init__(self, origem_capa=None, titulo="", sub_titulo="", tema="modern"):
-        self.origem_capa = origem_capa
+    def __init__(self, origem_capa=None, titulo="", sub_titulo="", tema="modern", variacao_capa=None):
         self.titulo = titulo.strip()
         self.sub_titulo = sub_titulo.strip()
         self.tema = tema
         self.tema_config = ThemeEngine.obter_estilos(tema)
 
-        if not self.origem_capa:
-            self.origem_capa = ThemeEngine.CAPAS_PADRAO.get(
-                self.tema, ThemeEngine.CAPAS_PADRAO["modern"]
-            )
+        # Trata se foi passado a URL direta ou o ID da variação do tema
+        alvo_capa = origem_capa if origem_capa else variacao_capa
+        self.origem_capa = ThemeEngine.obter_url_capa(
+            tema=self.tema, variacao_id_ou_url=alvo_capa
+        )
 
     def desenhar_capa(self, canvas_obj, doc):
         canvas_obj.saveState()
@@ -374,7 +492,6 @@ class CapaHandler:
                 try:
                     res = requests.get(origem_str, timeout=5)
                     if res.status_code == 200:
-                        # Executa o UPSCALE apenas nas imagens vindas de URL
                         image_upscaled_bytes = upscale_cover_image(res.content)
                         
                         from reportlab.lib.utils import ImageReader
@@ -389,7 +506,6 @@ class CapaHandler:
 
             elif os.path.exists(origem_str):
                 try:
-                    # Imagem selecionada localmente: usa o arquivo original sem upscale
                     canvas_obj.drawImage(
                         origem_str, 0, 0, width=largura, height=altura, preserveAspectRatio=False
                     )
@@ -439,12 +555,11 @@ class CapaHandler:
         canvas_obj.restoreState()
 
     def desenhar_fundo_paginas(self, canvas_obj, doc):
-        if self.tema in ["dark_tech", "music_prod", "ai_productivity", "health_wellness", "self_help"]:
-            canvas_obj.saveState()
-            largura, altura = A4
-            canvas_obj.setFillColor(self.tema_config["cor_fundo"])
-            canvas_obj.rect(0, 0, largura, altura, fill=True, stroke=False)
-            canvas_obj.restoreState()
+        canvas_obj.saveState()
+        largura, altura = A4
+        canvas_obj.setFillColor(self.tema_config["cor_fundo"])
+        canvas_obj.rect(0, 0, largura, altura, fill=True, stroke=False)
+        canvas_obj.restoreState()
 
 
 class NumberedCanvas(canvas.Canvas):
@@ -493,10 +608,12 @@ class EbookCompiler:
         titulo_ebook="",
         sub_titulo_ebook="",
         tema="music_prod",
+        variacao_capa=None,
     ):
         self.arquivo_fonte = arquivo_fonte
         self.arquivo_saida = arquivo_saida
         self.capa_url = capa_url
+        self.variacao_capa = variacao_capa
         self.tema = tema
         self.theme_cfg = ThemeEngine.obter_estilos(self.tema)
 
@@ -505,9 +622,45 @@ class EbookCompiler:
         self.sub_titulo_ebook = sub_titulo_ebook.strip() if sub_titulo_ebook.strip() else subtitulo_auto
 
     def _converter_inline_formatting(self, texto):
-        texto = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", texto)
-        texto = re.sub(r"\*(.*?)\*", r"<i>\1</i>", texto)
+        texto = re.sub(r"\*\*(.*?)\*\*", r"___BOLD___\1___ENDBOLD___", texto)
+        texto = re.sub(r"\*(.*?)\*", r"___ITALIC___\1___ENDITALIC___", texto)
+
+        texto = texto.replace("&", "&amp;")
+        texto = texto.replace("<", "&lt;")
+        texto = texto.replace(">", "&gt;")
+
+        texto = texto.replace("___BOLD___", "<b>").replace("___ENDBOLD___", "</b>")
+        texto = texto.replace("___ITALIC___", "<i>").replace("___ENDITALIC___", "</i>")
+
         return texto
+
+    def _gerar_tabela_flowable(self, linhas_tabela):
+        if not linhas_tabela:
+            return None
+
+        LARGURA_UTIL = 487.0
+        w_col1 = LARGURA_UTIL / 2.0
+        w_col2 = LARGURA_UTIL / 2.0
+
+        dados_tabela = []
+
+        for raw_col1, raw_col2 in linhas_tabela:
+            p_col1 = Paragraph(self._converter_inline_formatting(raw_col1), self.theme_cfg["table_col"])
+            p_col2 = Paragraph(self._converter_inline_formatting(raw_col2), self.theme_cfg["table_col"])
+            dados_tabela.append([p_col1, p_col2])
+
+        tabela = Table(dados_tabela, colWidths=[w_col1, w_col2])
+        tabela.setStyle(
+            TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("LINEAFTER", (0, 0), (0, -1), 0.75, self.theme_cfg["cor_linha"]),
+            ])
+        )
+        return tabela
 
     def _parse_markdown(self, texto_md):
         story = []
@@ -520,23 +673,14 @@ class EbookCompiler:
             if "|" in linha_str:
                 partes = [p.strip() for p in linha_str.split("|")]
                 if len(partes) >= 2:
-                    col1 = Paragraph(self._converter_inline_formatting(partes[0]), self.theme_cfg["table_col"])
-                    col2 = Paragraph(self._converter_inline_formatting(partes[1]), self.theme_cfg["table_col"])
-                    bloco_tabela.append([col1, col2])
+                    bloco_tabela.append((partes[0], partes[1]))
                     continue
 
             if bloco_tabela:
-                tabela = Table(bloco_tabela, colWidths=[240, 240])
-                tabela.setStyle(
-                    TableStyle([
-                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                        ("TOPPADDING", (0, 0), (-1, -1), 4),
-                        ("LINEAFTER", (0, 0), (0, -1), 0.5, self.theme_cfg["cor_linha"]),
-                    ])
-                )
-                story.append(tabela)
-                story.append(Spacer(1, 8))
+                tabela = self._gerar_tabela_flowable(bloco_tabela)
+                if tabela:
+                    story.append(tabela)
+                    story.append(Spacer(1, 8))
                 bloco_tabela = []
 
             if not linha_str:
@@ -544,7 +688,8 @@ class EbookCompiler:
 
             if linha_str.startswith("# "):
                 texto = linha_str[2:].strip()
-                story.append(Paragraph(texto, self.theme_cfg["h1"]))
+                texto_formatado = self._converter_inline_formatting(texto)
+                story.append(Paragraph(texto_formatado, self.theme_cfg["h1"]))
                 story.append(
                     HRFlowable(
                         width="100%",
@@ -555,16 +700,18 @@ class EbookCompiler:
                 )
             elif linha_str.startswith("## "):
                 texto = linha_str[3:].strip()
-                story.append(Paragraph(texto, self.theme_cfg["h2"]))
+                texto_formatado = self._converter_inline_formatting(texto)
+                story.append(Paragraph(texto_formatado, self.theme_cfg["h2"]))
             elif linha_str.startswith("### "):
                 texto = linha_str[4:].strip()
+                texto_formatado = self._converter_inline_formatting(texto)
                 h3_style = ParagraphStyle(
                     "CustomH3",
                     parent=self.theme_cfg["h2"],
                     fontSize=11,
                     textColor=self.theme_cfg["cor_primaria"],
                 )
-                story.append(Paragraph(texto, h3_style))
+                story.append(Paragraph(texto_formatado, h3_style))
             elif linha_str.startswith(("- ", "* ")):
                 texto = linha_str[2:].strip()
                 texto_formatado = self._converter_inline_formatting(texto)
@@ -576,16 +723,9 @@ class EbookCompiler:
                 story.append(Paragraph(texto_formatado, self.theme_cfg["body"]))
 
         if bloco_tabela:
-            tabela = Table(bloco_tabela, colWidths=[240, 240])
-            tabela.setStyle(
-                TableStyle([
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                    ("TOPPADDING", (0, 0), (-1, -1), 4),
-                    ("LINEAFTER", (0, 0), (0, -1), 0.5, self.theme_cfg["cor_linha"]),
-                ])
-            )
-            story.append(tabela)
+            tabela = self._gerar_tabela_flowable(bloco_tabela)
+            if tabela:
+                story.append(tabela)
 
         return story
 
@@ -651,6 +791,7 @@ class EbookCompiler:
 
         capa_handler = CapaHandler(
             origem_capa=self.capa_url,
+            variacao_capa=self.variacao_capa,
             titulo=self.titulo_ebook,
             sub_titulo=self.sub_titulo_ebook,
             tema=self.tema,
@@ -672,7 +813,6 @@ class EbookCompiler:
         )
 
     def gerar_preview_capa_fast(self, dpi=100):
-        # Utiliza o diretório temporário do SO seguro para executáveis compilados
         tmp_dir = tempfile.gettempdir()
         tmp_pdf_path = os.path.join(tmp_dir, "_capa_preview_temp.pdf")
 
@@ -688,6 +828,7 @@ class EbookCompiler:
 
             capa_handler = CapaHandler(
                 origem_capa=self.capa_url,
+                variacao_capa=self.variacao_capa,
                 titulo=self.titulo_ebook,
                 sub_titulo=self.sub_titulo_ebook,
                 tema=self.tema,

@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from PIL import Image
-from compiler import EbookCompiler
+from compiler import EbookCompiler, ThemeEngine
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -37,6 +37,9 @@ class EbookBuilderGUI(ctk.CTk):
             "📜 Editorial (Livro Classic - Serif)": "editorial",
             "🔹 Moderno (Corporate Clean)": "modern",
         }
+
+        # Dicionário auxiliar para mapear o nome amigável da variação de volta para o ID
+        self.mapa_variacoes_atuais = {}
 
         self._criar_menu_contexto()
         self._construir_interface()
@@ -155,10 +158,10 @@ class EbookBuilderGUI(ctk.CTk):
         self.entry_subtitulo.pack(padx=10, pady=(0, 8))
         self._adicionar_suporte_clique_direito(self.entry_subtitulo)
 
-        # 3. CAPA
+        # 3. CAPA PERSONALIZADA
         frame_capa = ctk.CTkFrame(frame_esquerda)
         frame_capa.pack(fill="x", padx=5, pady=6)
-        ctk.CTkLabel(frame_capa, text="3. Imagem de Capa (URL ou Local)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
+        ctk.CTkLabel(frame_capa, text="3. Imagem de Capa Personalizada (Opcional)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
 
         entry_url = ctk.CTkEntry(frame_capa, textvariable=self.url_capa, placeholder_text="URL da Imagem (Ex: Unsplash)...", width=480)
         entry_url.pack(padx=10, pady=(0, 6))
@@ -171,13 +174,35 @@ class EbookBuilderGUI(ctk.CTk):
         self._adicionar_suporte_clique_direito(entry_capa_local)
         ctk.CTkButton(box_capa_local, text="Procurar", width=90, command=self._procurar_capa_local).pack(side="left")
 
-        # 4. TEMAS E AÇÕES
+        # 4. TEMAS E VARIAÇÕES
         frame_tema = ctk.CTkFrame(frame_esquerda)
         frame_tema.pack(fill="x", padx=5, pady=6)
+        
         ctk.CTkLabel(frame_tema, text="4. Tema Visual do PDF", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
-
-        self.combo_tema = ctk.CTkOptionMenu(frame_tema, values=list(self.mapa_temas.keys()), width=480, fg_color="#1E293B", button_color="#2563EB", command=lambda choice: self._executar_preview_direto())
+        self.combo_tema = ctk.CTkOptionMenu(
+            frame_tema,
+            values=list(self.mapa_temas.keys()),
+            width=480,
+            fg_color="#1E293B",
+            button_color="#2563EB",
+            command=self._ao_alterar_tema
+        )
         self.combo_tema.pack(padx=10, pady=(0, 8))
+
+        # 5. VARIAÇÃO DE CAPA DO TEMA
+        ctk.CTkLabel(frame_tema, text="5. Variação da Capa (Background)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(4, 4))
+        self.combo_variacao = ctk.CTkOptionMenu(
+            frame_tema,
+            values=["Carregando..."],
+            width=480,
+            fg_color="#0F172A",
+            button_color="#3B82F6",
+            command=lambda choice: self._executar_preview_direto()
+        )
+        self.combo_variacao.pack(padx=10, pady=(0, 8))
+
+        # Atualiza o combo de variações para o tema padrão inicial
+        self._atualizar_opcoes_variacao(self.mapa_temas[self.combo_tema.get()])
 
         # BOTÃO PREVIEW
         self.btn_preview = ctk.CTkButton(frame_esquerda, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=self._executar_preview_direto)
@@ -216,16 +241,43 @@ class EbookBuilderGUI(ctk.CTk):
         )
         self.lbl_imagem_preview.pack(expand=True, fill="both", padx=10, pady=10)
 
+    def _ao_alterar_tema(self, escolha_tema):
+        tema_chave = self.mapa_temas.get(escolha_tema, "modern")
+        self._atualizar_opcoes_variacao(tema_chave)
+        self._executar_preview_direto()
+
+    def _atualizar_opcoes_variacao(self, tema_chave):
+        capas = ThemeEngine.obter_opcoes_capa_por_tema(tema_chave)
+        self.mapa_variacoes_atuais = {c["nome"]: c["id"] for c in capas}
+        
+        nomes_variacoes = list(self.mapa_variacoes_atuais.keys())
+        self.combo_variacao.configure(values=nomes_variacoes)
+        if nomes_variacoes:
+            self.combo_variacao.set(nomes_variacoes[0])
+
+    def _obter_id_variacao_selecionada(self):
+        nome_selecionado = self.combo_variacao.get()
+        return self.mapa_variacoes_atuais.get(nome_selecionado, None)
+
     # --- LÓGICA DO PREVIEW SÍNCRO ---
     def _executar_preview_direto(self):
         try:
             fonte = self.caminho_arquivo_fonte.get().strip()
             tema_chave = self.mapa_temas.get(self.combo_tema.get(), "modern")
+            variacao_id = self._obter_id_variacao_selecionada()
             capa = self.url_capa.get().strip() or self.caminho_capa_local.get().strip()
             titulo = self.entry_titulo.get().strip()
             subtitulo = self.entry_subtitulo.get().strip()
 
-            compiler = EbookCompiler(fonte, "", capa, titulo, subtitulo, tema_chave)
+            compiler = EbookCompiler(
+                arquivo_fonte=fonte,
+                arquivo_saida="",
+                capa_url=capa,
+                titulo_ebook=titulo,
+                sub_titulo_ebook=subtitulo,
+                tema=tema_chave,
+                variacao_capa=variacao_id
+            )
             imagens_pil = compiler.gerar_preview_capa_fast(dpi=100)
 
             if imagens_pil:
@@ -277,16 +329,33 @@ class EbookBuilderGUI(ctk.CTk):
         self.lbl_status.configure(text="⏳ Gerando e-book em PDF...", text_color="#F59E0B")
 
         tema_chave = self.mapa_temas.get(self.combo_tema.get(), "modern")
+        variacao_id = self._obter_id_variacao_selecionada()
 
         threading.Thread(
             target=self._executar_compilacao_bg,
-            args=(arquivo_fonte, caminho_saida, self.url_capa.get().strip() or self.caminho_capa_local.get().strip(), self.entry_titulo.get().strip(), self.entry_subtitulo.get().strip(), tema_chave),
+            args=(
+                arquivo_fonte,
+                caminho_saida,
+                self.url_capa.get().strip() or self.caminho_capa_local.get().strip(),
+                self.entry_titulo.get().strip(),
+                self.entry_subtitulo.get().strip(),
+                tema_chave,
+                variacao_id
+            ),
             daemon=True
         ).start()
 
-    def _executar_compilacao_bg(self, fonte, saída, capa, titulo, subtitulo, tema):
+    def _executar_compilacao_bg(self, fonte, saída, capa, titulo, subtitulo, tema, variacao):
         try:
-            EbookCompiler(fonte, saída, capa, titulo, subtitulo, tema).compilar()
+            EbookCompiler(
+                arquivo_fonte=fonte,
+                arquivo_saida=saída,
+                capa_url=capa,
+                titulo_ebook=titulo,
+                sub_titulo_ebook=subtitulo,
+                tema=tema,
+                variacao_capa=variacao
+            ).compilar()
             self.after(0, self._compilacao_sucesso, saída)
         except Exception as e:
             self.after(0, self._compilacao_erro, str(e))
