@@ -395,8 +395,9 @@ class EbookBuilderGUI(ctk.CTk):
         imagem.thumbnail((PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT), Image.Resampling.LANCZOS)
         # Remove a imagem anterior antes de liberar sua referência Tk.
         self.lbl_imagem_preview.configure(image=None)
-        self.preview_tk_image = ImageTk.PhotoImage(imagem, master=self)
-        self.lbl_imagem_preview.configure(image=self.preview_tk_image, text="")
+        label_tk = self.lbl_imagem_preview._label
+        self.preview_tk_image = ImageTk.PhotoImage(imagem, master=label_tk)
+        label_tk.configure(image=self.preview_tk_image, text="")
 
     def _preview_erro(self, generation, mensagem):
         if generation != self._preview_generation:
