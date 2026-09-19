@@ -50,12 +50,12 @@ class MarkdownRenderer:
         )
         return tabela
 
-    def _gerar_colunas_pdf_flowable(self, linhas):
+    def _gerar_colunas_pdf_flowable(self, linhas, separadores=None):
         if not linhas:
             return None
 
         dados = []
-        for coluna_esquerda, coluna_direita in linhas:
+        for coluna_esquerda, coluna_direita, _ in linhas:
             esquerda = self._converter_inline_formatting(coluna_esquerda)
             direita = self._converter_inline_formatting(coluna_direita)
             dados.append(
@@ -66,17 +66,39 @@ class MarkdownRenderer:
             )
 
         tabela = Table(dados, colWidths=[243.5, 243.5], repeatRows=0)
-        tabela.setStyle(
-            TableStyle(
-                [
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-                    ("TOPPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ]
-            )
-        )
+        estilos = [
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            (
+                "LINEAFTER",
+                (0, 0),
+                (0, -1),
+                0.75,
+                self.theme_cfg["cor_linha"],
+            ),
+        ]
+
+        if separadores:
+            tops = [linha[2] for linha in linhas]
+            for separador in sorted(set(separadores)):
+                indice = min(
+                    range(len(tops)),
+                    key=lambda item: abs(tops[item] - separador),
+                )
+                estilos.append(
+                    (
+                        "LINEABOVE",
+                        (0, indice),
+                        (-1, indice),
+                        0.5,
+                        self.theme_cfg["cor_linha"],
+                    )
+                )
+
+        tabela.setStyle(TableStyle(estilos))
         return tabela
 
     def _renderizar_tabela_buffer(self, story, blocos_tabela):

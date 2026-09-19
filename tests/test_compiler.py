@@ -159,6 +159,28 @@ def test_compilador_preserva_duas_colunas_do_pdf(tmp_path: Path):
     assert any(isinstance(flowable, Table) for flowable in flowables)
 
 
+def test_colunas_pdf_recriam_divisorias_com_table_style(tmp_path: Path):
+    fonte = tmp_path / "duas-colunas-com-linhas.pdf"
+    pdf = canvas.Canvas(str(fonte), pagesize=A4)
+    pdf.line(42, 700, 553, 700)
+    pdf.line(297, 100, 297, 700)
+    pdf.drawString(50, 680, "Coluna esquerda")
+    pdf.drawString(310, 680, "Coluna direita")
+    pdf.save()
+
+    compiler = EbookCompiler(str(fonte), str(tmp_path / "saida.pdf"))
+    tabela = compiler.renderer._gerar_colunas_pdf_flowable(
+        [
+            ("Coluna esquerda", "Coluna direita", 100),
+            ("Oração esquerda", "Oração direita", 120),
+        ],
+        separadores=[100],
+    )
+
+    assert any(comando[0] == "LINEAFTER" for comando in tabela._linecmds)
+    assert any(comando[0] == "LINEABOVE" for comando in tabela._linecmds)
+
+
 def test_preview_usa_temporario_unico_e_limpa_arquivo(tmp_path: Path, monkeypatch):
     capa = tmp_path / "capa.png"
     Image.new("RGB", (40, 40), color="navy").save(capa)
