@@ -4,6 +4,7 @@ import pytest
 from docx import Document
 from PIL import Image
 from reportlab.lib.pagesizes import A4
+from reportlab.platypus import Table
 from reportlab.pdfgen import canvas
 
 import compiler as compiler_module
@@ -141,6 +142,21 @@ def test_compilador_le_pdf(tmp_path: Path):
     flowables = compiler._parse_pdf(str(fonte))
 
     assert flowables
+
+
+def test_compilador_preserva_duas_colunas_do_pdf(tmp_path: Path):
+    fonte = tmp_path / "duas-colunas.pdf"
+    pdf = canvas.Canvas(str(fonte), pagesize=A4)
+    for indice in range(12):
+        y = 780 - indice * 24
+        pdf.drawString(50, y, f"Latim linha {indice}")
+        pdf.drawString(310, y, f"Português linha {indice}")
+    pdf.save()
+
+    compiler = EbookCompiler(str(fonte), str(tmp_path / "saida.pdf"))
+    flowables = compiler._parse_pdf(str(fonte))
+
+    assert any(isinstance(flowable, Table) for flowable in flowables)
 
 
 def test_preview_usa_temporario_unico_e_limpa_arquivo(tmp_path: Path, monkeypatch):
