@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
-from PIL import Image
+from PIL import Image, ImageTk
 
 from compiler import EbookCompiler, ThemeEngine
 from preview_state import build_preview_signature
@@ -70,6 +70,7 @@ class EbookBuilderGUI(ctk.CTk):
         self.url_capa = tk.StringVar()
 
         self.preview_ctk_image = None
+        self.preview_tk_image = None
         self._preview_generation = 0
         self._preview_signature = None
         self._preview_thread = None
@@ -391,12 +392,8 @@ class EbookBuilderGUI(ctk.CTk):
             return
 
         imagem.thumbnail((PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT), Image.Resampling.LANCZOS)
-        self.preview_ctk_image = ctk.CTkImage(
-            light_image=imagem,
-            dark_image=imagem,
-            size=(imagem.width, imagem.height),
-        )
-        self.lbl_imagem_preview.configure(image=self.preview_ctk_image, text="")
+        self.preview_tk_image = ImageTk.PhotoImage(imagem, master=self)
+        self.lbl_imagem_preview.configure(image=self.preview_tk_image, text="")
 
     def _preview_erro(self, generation, mensagem):
         if generation != self._preview_generation:
