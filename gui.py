@@ -15,7 +15,10 @@ class EbookBuilderGUI(ctk.CTk):
         super().__init__()
 
         self.title("EbookBuilder — Gerador de E-books com Preview em Tempo Real")
+        
+        # Define tamanho padrão e LIMITE MÍNIMO para evitar quebras ao redimensionar
         self.geometry("1180x850")
+        self.minsize(980, 650)
         self.resizable(True, True)
 
         self.caminho_arquivo_fonte = tk.StringVar()
@@ -38,7 +41,6 @@ class EbookBuilderGUI(ctk.CTk):
             "🔹 Moderno (Corporate Clean)": "modern",
         }
 
-        # Dicionário auxiliar para mapear o nome amigável da variação de volta para o ID
         self.mapa_variacoes_atuais = {}
 
         self._criar_menu_contexto()
@@ -86,8 +88,9 @@ class EbookBuilderGUI(ctk.CTk):
         target.bind("<Button-3>", self._exibir_menu_contexto)
 
     def _construir_interface(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
+        # Ajuste proporcional das colunas: Esquerda (40%) e Direita/Preview (60%)
+        self.grid_columnconfigure(0, weight=4)
+        self.grid_columnconfigure(1, weight=6)
         self.grid_rowconfigure(0, weight=1)
 
         # ==================== PAINEL ESQUERDO ====================
@@ -107,24 +110,23 @@ class EbookBuilderGUI(ctk.CTk):
 
         box_fonte = ctk.CTkFrame(frame_fonte, fg_color="transparent")
         box_fonte.pack(fill="x", padx=10, pady=(0, 4))
-        entry_fonte = ctk.CTkEntry(box_fonte, textvariable=self.caminho_arquivo_fonte, placeholder_text="Arquivo de conteúdo (.md, .docx, .pdf, .txt)...", width=380)
-        entry_fonte.pack(side="left", padx=(0, 5))
+        entry_fonte = ctk.CTkEntry(box_fonte, textvariable=self.caminho_arquivo_fonte, placeholder_text="Arquivo de conteúdo (.md, .docx, .pdf, .txt)...")
+        entry_fonte.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self._adicionar_suporte_clique_direito(entry_fonte)
-        ctk.CTkButton(box_fonte, text="Procurar", width=90, command=self._procurar_fonte).pack(side="left")
+        ctk.CTkButton(box_fonte, text="Procurar", width=90, command=self._procurar_fonte).pack(side="right")
 
         box_destino = ctk.CTkFrame(frame_fonte, fg_color="transparent")
         box_destino.pack(fill="x", padx=10, pady=(0, 8))
-        entry_destino = ctk.CTkEntry(box_destino, textvariable=self.pasta_destino, placeholder_text="Pasta onde o E-book será salvo...", width=380)
-        entry_destino.pack(side="left", padx=(0, 5))
+        entry_destino = ctk.CTkEntry(box_destino, textvariable=self.pasta_destino, placeholder_text="Pasta onde o E-book será salvo...")
+        entry_destino.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self._adicionar_suporte_clique_direito(entry_destino)
-        ctk.CTkButton(box_destino, text="Destino", width=90, command=self._procurar_destino).pack(side="left")
+        ctk.CTkButton(box_destino, text="Destino", width=90, command=self._procurar_destino).pack(side="right")
 
-        # 2. TÍTULOS (COM RÓTULOS EXPLICATIVOS DEDICADOS)
+        # 2. TÍTULOS
         frame_titulos = ctk.CTkFrame(frame_esquerda)
         frame_titulos.pack(fill="x", padx=5, pady=6)
         ctk.CTkLabel(frame_titulos, text="2. Título e Subtítulo da Capa", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 2))
 
-        # Rótulo orientativo do Título
         ctk.CTkLabel(
             frame_titulos,
             text="💡 Título (Opcional: Deixe em branco para extrair do documento)",
@@ -135,13 +137,11 @@ class EbookBuilderGUI(ctk.CTk):
         self.entry_titulo = ctk.CTkEntry(
             frame_titulos,
             textvariable=self.titulo_ebook,
-            placeholder_text="Digite o título manualmente se desejar...",
-            width=480
+            placeholder_text="Digite o título manualmente se desejar..."
         )
-        self.entry_titulo.pack(padx=10, pady=(0, 8))
+        self.entry_titulo.pack(fill="x", padx=10, pady=(0, 8))
         self._adicionar_suporte_clique_direito(self.entry_titulo)
 
-        # Rótulo orientativo do Subtítulo
         ctk.CTkLabel(
             frame_titulos,
             text="💡 Subtítulo (Opcional: Deixe em branco para extrair do documento)",
@@ -152,10 +152,9 @@ class EbookBuilderGUI(ctk.CTk):
         self.entry_subtitulo = ctk.CTkEntry(
             frame_titulos,
             textvariable=self.sub_titulo_ebook,
-            placeholder_text="Digite o subtítulo manualmente se desejar...",
-            width=480
+            placeholder_text="Digite o subtítulo manualmente se desejar..."
         )
-        self.entry_subtitulo.pack(padx=10, pady=(0, 8))
+        self.entry_subtitulo.pack(fill="x", padx=10, pady=(0, 8))
         self._adicionar_suporte_clique_direito(self.entry_subtitulo)
 
         # 3. CAPA PERSONALIZADA
@@ -163,16 +162,16 @@ class EbookBuilderGUI(ctk.CTk):
         frame_capa.pack(fill="x", padx=5, pady=6)
         ctk.CTkLabel(frame_capa, text="3. Imagem de Capa Personalizada (Opcional)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
 
-        entry_url = ctk.CTkEntry(frame_capa, textvariable=self.url_capa, placeholder_text="URL da Imagem (Ex: Unsplash)...", width=480)
-        entry_url.pack(padx=10, pady=(0, 6))
+        entry_url = ctk.CTkEntry(frame_capa, textvariable=self.url_capa, placeholder_text="URL da Imagem (Ex: Unsplash)...")
+        entry_url.pack(fill="x", padx=10, pady=(0, 6))
         self._adicionar_suporte_clique_direito(entry_url)
 
         box_capa_local = ctk.CTkFrame(frame_capa, fg_color="transparent")
         box_capa_local.pack(fill="x", padx=10, pady=(0, 8))
-        entry_capa_local = ctk.CTkEntry(box_capa_local, textvariable=self.caminho_capa_local, placeholder_text="OU imagem no computador...", width=380)
-        entry_capa_local.pack(side="left", padx=(0, 5))
+        entry_capa_local = ctk.CTkEntry(box_capa_local, textvariable=self.caminho_capa_local, placeholder_text="OU imagem no computador...")
+        entry_capa_local.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self._adicionar_suporte_clique_direito(entry_capa_local)
-        ctk.CTkButton(box_capa_local, text="Procurar", width=90, command=self._procurar_capa_local).pack(side="left")
+        ctk.CTkButton(box_capa_local, text="Procurar", width=90, command=self._procurar_capa_local).pack(side="right")
 
         # 4. TEMAS E VARIAÇÕES
         frame_tema = ctk.CTkFrame(frame_esquerda)
@@ -182,26 +181,23 @@ class EbookBuilderGUI(ctk.CTk):
         self.combo_tema = ctk.CTkOptionMenu(
             frame_tema,
             values=list(self.mapa_temas.keys()),
-            width=480,
             fg_color="#1E293B",
             button_color="#2563EB",
             command=self._ao_alterar_tema
         )
-        self.combo_tema.pack(padx=10, pady=(0, 8))
+        self.combo_tema.pack(fill="x", padx=10, pady=(0, 8))
 
         # 5. VARIAÇÃO DE CAPA DO TEMA
         ctk.CTkLabel(frame_tema, text="5. Variação da Capa (Background)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(4, 4))
         self.combo_variacao = ctk.CTkOptionMenu(
             frame_tema,
             values=["Carregando..."],
-            width=480,
             fg_color="#0F172A",
             button_color="#3B82F6",
             command=lambda choice: self._executar_preview_direto()
         )
-        self.combo_variacao.pack(padx=10, pady=(0, 8))
+        self.combo_variacao.pack(fill="x", padx=10, pady=(0, 8))
 
-        # Atualiza o combo de variações para o tema padrão inicial
         self._atualizar_opcoes_variacao(self.mapa_temas[self.combo_tema.get()])
 
         # BOTÃO PREVIEW
@@ -237,7 +233,7 @@ class EbookBuilderGUI(ctk.CTk):
             self.box_canvas_preview,
             text="Clique em 'Atualizar Pré-visualização' para gerar a capa do e-book.",
             text_color="#94A3B8",
-            wraplength=400
+            wraplength=350
         )
         self.lbl_imagem_preview.pack(expand=True, fill="both", padx=10, pady=10)
 
@@ -259,7 +255,6 @@ class EbookBuilderGUI(ctk.CTk):
         nome_selecionado = self.combo_variacao.get()
         return self.mapa_variacoes_atuais.get(nome_selecionado, None)
 
-    # --- LÓGICA DO PREVIEW SÍNCRO ---
     def _executar_preview_direto(self):
         try:
             fonte = self.caminho_arquivo_fonte.get().strip()
