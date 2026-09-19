@@ -78,7 +78,7 @@ class SmartParser:
         return []
 
     @staticmethod
-    def _extrair_primeiros_titulos_da_lista(linhas):
+    def _extrair_primeiros_titulos_da_lista(linhas, usar_linhas_simples=False):
         titulo_auto, subtitulo_auto = "", ""
 
         for linha in linhas:
@@ -90,6 +90,12 @@ class SmartParser:
                 subtitulo_auto = re.sub(r"^#{2,3}\s*", "", linha)
                 break
 
+        if not titulo_auto and linhas:
+            titulo_auto = re.sub(r"^#\s*", "", linhas[0])
+
+        if usar_linhas_simples and titulo_auto and len(linhas) > 1 and not subtitulo_auto:
+            subtitulo_auto = re.sub(r"^#{2,3}\s*", "", linhas[1])
+
         return titulo_auto, subtitulo_auto
 
     @staticmethod
@@ -99,8 +105,11 @@ class SmartParser:
 
         try:
             linhas = SmartParser._iterar_linhas_do_documento(caminho_arquivo)
-            return SmartParser._extrair_primeiros_titulos_da_lista(linhas)
+            extensao = os.path.splitext(caminho_arquivo)[1].lower()
+            usar_linhas_simples = extensao in [".txt", ".docx", ".pdf"]
+            return SmartParser._extrair_primeiros_titulos_da_lista(
+                linhas, usar_linhas_simples=usar_linhas_simples
+            )
         except Exception as exc:
             print(f"[Aviso Parser Titulos]: {exc}")
             return "", ""
-

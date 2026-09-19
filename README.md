@@ -8,8 +8,10 @@ O EbookBuilder foi projetado para processamento local: os arquivos do usuário n
 
 - Conversão de arquivos `.md`, `.docx`, `.txt` e `.pdf` em e-books diagramados.
 - Temas visuais e variações de capa.
+- Capa padrão automática conforme o tema quando nenhuma imagem local ou URL é informada.
 - Preview da capa antes da compilação.
-- Extração de títulos e subtítulos dos documentos.
+- Extração automática de título e subtítulo do documento, com prioridade para valores
+  preenchidos manualmente pelo usuário.
 - Geração de PDF com capa, estilos, cabeçalho, rodapé e paginação.
 - Execução como aplicação desktop no Linux e no Windows.
 
