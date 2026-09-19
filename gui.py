@@ -389,9 +389,12 @@ class EbookBuilderGUI(ctk.CTk):
                 text="Nenhuma imagem de capa foi gerada.",
                 image=None,
             )
+            self.preview_tk_image = None
             return
 
         imagem.thumbnail((PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT), Image.Resampling.LANCZOS)
+        # Remove a imagem anterior antes de liberar sua referência Tk.
+        self.lbl_imagem_preview.configure(image=None)
         self.preview_tk_image = ImageTk.PhotoImage(imagem, master=self)
         self.lbl_imagem_preview.configure(image=self.preview_tk_image, text="")
 
@@ -402,6 +405,7 @@ class EbookBuilderGUI(ctk.CTk):
             text=f"❌ Erro ao gerar capa:\n{mensagem}",
             image=None,
         )
+        self.preview_tk_image = None
 
     def _procurar_fonte(self):
         caminho = filedialog.askopenfilename(filetypes=[("Todos os Formatos Suportados", "*.md *.docx *.pdf *.txt")])
