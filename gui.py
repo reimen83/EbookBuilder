@@ -432,7 +432,7 @@ class EbookBuilderGUI(ctk.CTk):
             target=self._executar_compilacao_bg,
             args=(
                 form,
-                caminho_saida,
+                str(caminho_saida),
             ),
             daemon=True,
         ).start()

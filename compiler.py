@@ -65,7 +65,7 @@ class EbookCompiler:
 
     def _criar_documento(self, path):
         return SimpleDocTemplate(
-            os.fspath(path),
+            str(path),
             pagesize=A4,
             leftMargin=54,
             rightMargin=54,
