@@ -1,5 +1,7 @@
 import os
 
+from reportlab.platypus import PageBreak
+
 try:
     import docx
 except ImportError:
@@ -39,13 +41,63 @@ class DocxParser(BaseDocumentParser):
 
 
 class PdfParser(BaseDocumentParser):
+    @staticmethod
+    def _agrupar_linhas(words, tolerancia=3):
+        linhas = []
+        for word in sorted(words, key=lambda item: (item["top"], item["x0"])):
+            linha = next(
+                (item for item in linhas if abs(item["top"] - word["top"]) <= tolerancia),
+                None,
+            )
+            if linha is None:
+                linha = {"top": word["top"], "words": []}
+                linhas.append(linha)
+            linha["words"].append(word)
+
+        return [sorted(linha["words"], key=lambda item: item["x0"]) for linha in linhas]
+
+    def _extrair_linhas_de_duas_colunas(self, pagina):
+        words = pagina.extract_words(
+            x_tolerance=2,
+            y_tolerance=3,
+            keep_blank_chars=False,
+        )
+        if not words:
+            return []
+
+        meio = pagina.width / 2
+        esquerda = [word for word in words if word["x0"] < meio]
+        direita = [word for word in words if word["x0"] >= meio]
+        if len(esquerda) < 8 or len(direita) < 8:
+            return None
+
+        linhas = self._agrupar_linhas(words)
+        resultado = []
+        for linha in linhas:
+            texto_esquerda = " ".join(
+                word["text"] for word in linha if word["x0"] < meio
+            ).strip()
+            texto_direita = " ".join(
+                word["text"] for word in linha if word["x0"] >= meio
+            ).strip()
+            if texto_esquerda or texto_direita:
+                resultado.append((texto_esquerda, texto_direita))
+        return resultado
+
     def parse(self, caminho_pdf):
         if pdfplumber is None:
             raise ImportError("A biblioteca 'pdfplumber' não está instalada.")
 
-        texto_completo = []
+        conteudo = []
         with pdfplumber.open(caminho_pdf) as pdf:
             for pagina in pdf.pages:
+                linhas_colunas = self._extrair_linhas_de_duas_colunas(pagina)
+                if linhas_colunas is not None:
+                    tabela_colunas = self.renderer._gerar_colunas_pdf_flowable(linhas_colunas)
+                    if tabela_colunas:
+                        conteudo.extend([tabela_colunas, PageBreak()])
+                    continue
+
                 tabelas = pagina.extract_tables()
                 if tabelas:
                     for tabela in tabelas:
@@ -54,15 +106,18 @@ class PdfParser(BaseDocumentParser):
                                 col_a = (linha[0] or "").replace("\n", " ").strip()
                                 col_b = (linha[1] or "").replace("\n", " ").strip()
                                 if col_a or col_b:
-                                    texto_completo.append(f"{col_a} | {col_b}")
+                                    conteudo.extend(
+                                        self.renderer._parse_markdown(f"{col_a} | {col_b}")
+                                    )
                 else:
                     texto_pagina = pagina.extract_text()
                     if texto_pagina:
-                        texto_completo.append(texto_pagina)
+                        texto_formatado = self.smart_parser.inferir_estrutura(texto_pagina)
+                        conteudo.extend(self.renderer._parse_markdown(texto_formatado))
 
-        texto_unificado = "\n\n".join(texto_completo)
-        texto_formatado = self.smart_parser.inferir_estrutura(texto_unificado)
-        return self.renderer._parse_markdown(texto_formatado)
+        if conteudo and isinstance(conteudo[-1], PageBreak):
+            conteudo.pop()
+        return conteudo
 
 
 class DocumentReader:

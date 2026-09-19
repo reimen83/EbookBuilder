@@ -50,6 +50,35 @@ class MarkdownRenderer:
         )
         return tabela
 
+    def _gerar_colunas_pdf_flowable(self, linhas):
+        if not linhas:
+            return None
+
+        dados = []
+        for coluna_esquerda, coluna_direita in linhas:
+            esquerda = self._converter_inline_formatting(coluna_esquerda)
+            direita = self._converter_inline_formatting(coluna_direita)
+            dados.append(
+                [
+                    Paragraph(esquerda, self.theme_cfg["body"]) if esquerda else "",
+                    Paragraph(direita, self.theme_cfg["body"]) if direita else "",
+                ]
+            )
+
+        tabela = Table(dados, colWidths=[243.5, 243.5], repeatRows=0)
+        tabela.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        )
+        return tabela
+
     def _renderizar_tabela_buffer(self, story, blocos_tabela):
         if not blocos_tabela:
             return

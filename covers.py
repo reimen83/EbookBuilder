@@ -94,10 +94,15 @@ class CapaHandler:
                 except Exception as e:
                     print(f"[Aviso] Falha ao baixar imagem: {e}")
 
-            elif os.path.exists(origem_str):
+            elif os.path.isfile(origem_str):
                 try:
                     canvas_obj.drawImage(
-                        origem_str, 0, 0, width=largura, height=altura, preserveAspectRatio=False
+                        os.fspath(origem_str),
+                        0,
+                        0,
+                        width=largura,
+                        height=altura,
+                        preserveAspectRatio=False,
                     )
                     sucesso_imagem = True
                 except Exception as e:
