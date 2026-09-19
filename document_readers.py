@@ -81,8 +81,22 @@ class PdfParser(BaseDocumentParser):
                 word["text"] for word in linha if word["x0"] >= meio
             ).strip()
             if texto_esquerda or texto_direita:
-                resultado.append((texto_esquerda, texto_direita))
-        return resultado
+                resultado.append(
+                    (
+                        texto_esquerda,
+                        texto_direita,
+                        min(word["top"] for word in linha),
+                    )
+                )
+
+        separadores = [
+            line["top"]
+            for line in pagina.lines
+            if line["height"] == 0
+            and line["x0"] <= meio
+            and line["x1"] >= meio
+        ]
+        return resultado, separadores
 
     def parse(self, caminho_pdf):
         if pdfplumber is None:
@@ -91,9 +105,13 @@ class PdfParser(BaseDocumentParser):
         conteudo = []
         with pdfplumber.open(caminho_pdf) as pdf:
             for pagina in pdf.pages:
-                linhas_colunas = self._extrair_linhas_de_duas_colunas(pagina)
-                if linhas_colunas is not None:
-                    tabela_colunas = self.renderer._gerar_colunas_pdf_flowable(linhas_colunas)
+                colunas_extraidas = self._extrair_linhas_de_duas_colunas(pagina)
+                if colunas_extraidas is not None:
+                    linhas_colunas, separadores = colunas_extraidas
+                    tabela_colunas = self.renderer._gerar_colunas_pdf_flowable(
+                        linhas_colunas,
+                        separadores=separadores,
+                    )
                     if tabela_colunas:
                         conteudo.extend([tabela_colunas, PageBreak()])
                     continue
