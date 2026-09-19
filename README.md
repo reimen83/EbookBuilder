@@ -1,8 +1,10 @@
-📄 EbookBuilder — PDF Editor & ReportLab Suite
+# 📄 EbookBuilder — PDF Editor & ReportLab Suite
 
 Uma aplicação desktop desenvolvida em Python para conversão, diagramação, estilização e compilação de documentos PDF/E-books utilizando ReportLab, CustomTkinter e pdfplumber.
 
-🚀 Funcionalidades
+---
+
+## 🚀 Funcionalidades
 
 - **Automação de Conteúdo para PDF:** Converte arquivos de texto (.md, .docx, .txt, .pdf) em e-books diagramados e estilizados.
 - **🎨 Variações Dinâmicas de Capa (ThemeEngine):** Seleção de temas visuais e variações de background em tempo real, permitindo alternar estilos visuais sem quebrar o layout ou a tipografia.
@@ -12,7 +14,9 @@ Uma aplicação desktop desenvolvida em Python para conversão, diagramação, e
 - **Interface Gráfica Moderna (GUI):** Interface intuitiva e responsiva construída com **CustomTkinter**, facilitando a navegação, seleção de temas e visualização de arquivos.
 - **Abertura Rápida de Editor:** Botão integrado para abrir o script diretamente no editor padrão do sistema.
 
-🛠️ Tecnologias Utilizadas
+---
+
+## 🛠️ Tecnologias Utilizadas
 
 - **Python 3**
 - **CustomTkinter & Tkinter** (Interface gráfica moderna e responsiva)
@@ -21,7 +25,9 @@ Uma aplicação desktop desenvolvida em Python para conversão, diagramação, e
 - **Pillow (PIL)** (Processamento e renderização do preview de imagem)
 - **PyInstaller** (Compilação para executável desktop)
 
-🎨 Temas e Variações de Capa Suportados
+---
+
+## 🎨 Temas e Variações de Capa Suportados
 
 | Tema Visual | ID do Tema | Variações de Capa |
 | :--- | :--- | :--- |
@@ -34,9 +40,13 @@ Uma aplicação desktop desenvolvida em Python para conversão, diagramação, e
 | **📜 Editorial** | `editorial` | Classic Cream, Vintage Paper, Clean White, Book Serif |
 | **🔹 Moderno** | `modern` | Corporate Blue, Soft Gray, Bold Modern, Minimal Slate |
 
-🔧 Como Executar
+---
 
-### Pré-requisitos
+## 🔧 Como Executar
+
+python gui.py
+
+### 1. Pré-requisitos
 
 Instale as dependências executando:
 ```bash
