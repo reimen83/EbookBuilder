@@ -27,12 +27,11 @@ class MarkdownRenderer:
         if not linhas_tabela:
             return None
 
-        LARGURA_UTIL = 487.0
-        w_col1 = LARGURA_UTIL / 2.0
-        w_col2 = LARGURA_UTIL / 2.0
+        largura_util = 487.0
+        w_col1 = largura_util / 2.0
+        w_col2 = largura_util / 2.0
 
         dados_tabela = []
-
         for raw_col1, raw_col2 in linhas_tabela:
             p_col1 = Paragraph(self._converter_inline_formatting(raw_col1), self.theme_cfg["table_col"])
             p_col2 = Paragraph(self._converter_inline_formatting(raw_col2), self.theme_cfg["table_col"])
@@ -51,6 +50,55 @@ class MarkdownRenderer:
         )
         return tabela
 
+    def _renderizar_tabela_buffer(self, story, blocos_tabela):
+        if not blocos_tabela:
+            return
+
+        tabela = self._gerar_tabela_flowable(blocos_tabela)
+        if tabela:
+            story.append(tabela)
+            story.append(Spacer(1, 8))
+
+    def _renderizar_paragrafo(self, story, texto, style):
+        story.append(Paragraph(self._converter_inline_formatting(texto), style))
+
+    def _renderizar_titulo_h3(self, story, texto):
+        h3_style = ParagraphStyle(
+            "CustomH3",
+            parent=self.theme_cfg["h2"],
+            fontSize=11,
+            textColor=self.theme_cfg["cor_primaria"],
+        )
+        self._renderizar_paragrafo(story, texto, h3_style)
+
+    def _renderizar_linha(self, story, linha_str):
+        if linha_str.startswith("# "):
+            texto = linha_str[2:].strip()
+            self._renderizar_paragrafo(story, texto, self.theme_cfg["h1"])
+            story.append(
+                HRFlowable(
+                    width="100%",
+                    thickness=1,
+                    color=self.theme_cfg["cor_linha"],
+                    spaceAfter=12,
+                )
+            )
+            return
+
+        if linha_str.startswith("## "):
+            self._renderizar_paragrafo(story, linha_str[3:].strip(), self.theme_cfg["h2"])
+            return
+
+        if linha_str.startswith("### "):
+            self._renderizar_titulo_h3(story, linha_str[4:].strip())
+            return
+
+        if linha_str.startswith(("- ", "* ")):
+            self._renderizar_paragrafo(story, f"• {linha_str[2:].strip()}", self.theme_cfg["bullet"])
+            return
+
+        self._renderizar_paragrafo(story, linha_str, self.theme_cfg["body"])
+
     def _parse_markdown(self, texto_md):
         story = []
         linhas = texto_md.split("\n")
@@ -66,54 +114,15 @@ class MarkdownRenderer:
                     continue
 
             if bloco_tabela:
-                tabela = self._gerar_tabela_flowable(bloco_tabela)
-                if tabela:
-                    story.append(tabela)
-                    story.append(Spacer(1, 8))
+                self._renderizar_tabela_buffer(story, bloco_tabela)
                 bloco_tabela = []
 
             if not linha_str:
                 continue
 
-            if linha_str.startswith("# "):
-                texto = linha_str[2:].strip()
-                texto_formatado = self._converter_inline_formatting(texto)
-                story.append(Paragraph(texto_formatado, self.theme_cfg["h1"]))
-                story.append(
-                    HRFlowable(
-                        width="100%",
-                        thickness=1,
-                        color=self.theme_cfg["cor_linha"],
-                        spaceAfter=12,
-                    )
-                )
-            elif linha_str.startswith("## "):
-                texto = linha_str[3:].strip()
-                texto_formatado = self._converter_inline_formatting(texto)
-                story.append(Paragraph(texto_formatado, self.theme_cfg["h2"]))
-            elif linha_str.startswith("### "):
-                texto = linha_str[4:].strip()
-                texto_formatado = self._converter_inline_formatting(texto)
-                h3_style = ParagraphStyle(
-                    "CustomH3",
-                    parent=self.theme_cfg["h2"],
-                    fontSize=11,
-                    textColor=self.theme_cfg["cor_primaria"],
-                )
-                story.append(Paragraph(texto_formatado, h3_style))
-            elif linha_str.startswith(("- ", "* ")):
-                texto = linha_str[2:].strip()
-                texto_formatado = self._converter_inline_formatting(texto)
-                story.append(
-                    Paragraph(f"• {texto_formatado}", self.theme_cfg["bullet"])
-                )
-            else:
-                texto_formatado = self._converter_inline_formatting(linha_str)
-                story.append(Paragraph(texto_formatado, self.theme_cfg["body"]))
+            self._renderizar_linha(story, linha_str)
 
         if bloco_tabela:
-            tabela = self._gerar_tabela_flowable(bloco_tabela)
-            if tabela:
-                story.append(tabela)
+            self._renderizar_tabela_buffer(story, bloco_tabela)
 
         return story
