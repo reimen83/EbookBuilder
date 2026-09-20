@@ -116,6 +116,19 @@ def test_titulo_longo_sem_espacos_respeita_largura_da_capa():
     assert all(stringWidth(linha, "Helvetica-Bold", 23) <= 368 for linha in linhas)
 
 
+def test_multiplos_espacos_no_titulo_criam_quebra_explicita():
+    from covers import CapaHandler
+
+    linhas = CapaHandler._quebrar_texto(
+        "Stephen King    It - A Coisa",
+        "Helvetica-Bold",
+        23,
+        368,
+    )
+
+    assert linhas == ["Stephen King", "It - A Coisa"]
+
+
 def test_temas_têm_variacoes_e_estilos():
     opcoes = ThemeEngine.obter_opcoes_capa_por_tema("modern")
     estilos = ThemeEngine.obter_estilos("modern")
