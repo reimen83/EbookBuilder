@@ -1,7 +1,7 @@
 import sys
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+from tkinter import filedialog, messagebox
 import traceback
 from queue import Empty, Queue
 from dataclasses import dataclass
@@ -10,7 +10,6 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from compiler import EbookCompiler, ThemeEngine
-from presets import PresetStore
 from preview_state import build_preview_signature
 from validation import (
     build_output_path,
@@ -78,7 +77,6 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_signature = None
         self._preview_thread = None
         self._preview_results = Queue()
-        self.preset_store = PresetStore()
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -185,7 +183,6 @@ class EbookBuilderGUI(ctk.CTk):
         abas.pack(fill="both", expand=True, padx=5, pady=(0, 8))
         aba_projeto = abas.add("Projeto")
         aba_aparencia = abas.add("Aparência")
-        aba_presets = abas.add("Presets")
 
         # 1. ORIGEM E DESTINO
         frame_fonte = ctk.CTkFrame(aba_projeto)
@@ -284,55 +281,6 @@ class EbookBuilderGUI(ctk.CTk):
 
         self._atualizar_opcoes_variacao(self.mapa_temas[self.combo_tema.get()])
 
-        frame_presets = ctk.CTkFrame(aba_presets, fg_color="transparent")
-        frame_presets.pack(fill="x", padx=5, pady=(2, 4))
-        ctk.CTkLabel(
-            aba_presets,
-            text="6. Presets de configuração",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).pack(anchor="w", padx=10, pady=(8, 2))
-        self.combo_presets = ctk.CTkOptionMenu(
-            frame_presets,
-            values=self.preset_store.listar() or ["Nenhum preset salvo"],
-            command=self._carregar_preset,
-        )
-        self.combo_presets.pack(side="left", fill="x", expand=True, padx=(0, 5))
-
-        frame_botoes_presets = ctk.CTkFrame(frame_presets, fg_color="transparent")
-        frame_botoes_presets.pack(side="right")
-        ctk.CTkButton(
-            frame_botoes_presets,
-            text="Salvar",
-            width=72,
-            command=self._salvar_preset,
-        ).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(
-            frame_botoes_presets,
-            text="Renomear",
-            width=78,
-            command=self._renomear_preset,
-        ).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(
-            frame_botoes_presets,
-            text="Excluir",
-            width=68,
-            fg_color="#B91C1C",
-            hover_color="#991B1B",
-            command=self._excluir_preset,
-        ).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(
-            frame_botoes_presets,
-            text="Exportar",
-            width=74,
-            command=self._exportar_presets,
-        ).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(
-            frame_botoes_presets,
-            text="Importar",
-            width=74,
-            command=self._importar_presets,
-        ).pack(side="left")
-
         # BOTÃO PREVIEW
         self.btn_preview = ctk.CTkButton(aba_projeto, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=lambda: self._executar_preview_direto(force=True))
         self.btn_preview.pack(fill="x", padx=5, pady=(8, 4))
@@ -401,146 +349,6 @@ class EbookBuilderGUI(ctk.CTk):
     def _obter_id_variacao_selecionada(self):
         nome_selecionado = self.combo_variacao.get()
         return self.mapa_variacoes_atuais.get(nome_selecionado, None)
-
-    def _configuracao_preset(self):
-        config = self._build_form_config()
-        return {
-            "origem": config.origem,
-            "destino": config.destino,
-            "titulo": config.titulo,
-            "subtitulo": config.subtitulo,
-            "capa": config.capa,
-            "tema": config.tema,
-            "variacao": config.variacao,
-        }
-
-    def _atualizar_lista_presets(self):
-        nomes = self.preset_store.listar() or ["Nenhum preset salvo"]
-        self.combo_presets.configure(values=nomes)
-        self.combo_presets.set(nomes[0])
-
-    def _salvar_preset(self):
-        nome = simpledialog.askstring("Salvar preset", "Nome do preset:")
-        if not nome:
-            return
-        try:
-            self.preset_store.salvar(nome, self._configuracao_preset())
-            self._atualizar_lista_presets()
-            self.lbl_status.configure(
-                text=f"✅ Preset '{nome.strip()}' salvo.",
-                text_color="#10B981",
-            )
-        except (OSError, TypeError, ValueError) as exc:
-            messagebox.showerror("Preset inválido", str(exc))
-
-    def _preset_selecionado(self):
-        nome = self.combo_presets.get().strip()
-        if not nome or nome == "Nenhum preset salvo":
-            messagebox.showwarning("Preset não selecionado", "Selecione um preset primeiro.")
-            return None
-        return nome
-
-    def _renomear_preset(self):
-        nome_atual = self._preset_selecionado()
-        if nome_atual is None:
-            return
-        novo_nome = simpledialog.askstring(
-            "Renomear preset",
-            "Novo nome do preset:",
-            initialvalue=nome_atual,
-        )
-        if not novo_nome or novo_nome.strip() == nome_atual:
-            return
-        try:
-            self.preset_store.renomear(nome_atual, novo_nome)
-            self._atualizar_lista_presets()
-            self.combo_presets.set(novo_nome.strip())
-            self.lbl_status.configure(
-                text=f"✅ Preset renomeado para '{novo_nome.strip()}'.",
-                text_color="#10B981",
-            )
-        except (KeyError, OSError, ValueError) as exc:
-            messagebox.showerror("Não foi possível renomear o preset", str(exc))
-
-    def _excluir_preset(self):
-        nome = self._preset_selecionado()
-        if nome is None:
-            return
-        if not messagebox.askyesno(
-            "Excluir preset",
-            f"Excluir o preset '{nome}'?\nEssa ação não pode ser desfeita.",
-        ):
-            return
-        try:
-            self.preset_store.excluir(nome)
-            self._atualizar_lista_presets()
-            self.lbl_status.configure(
-                text=f"✅ Preset '{nome}' excluído.",
-                text_color="#10B981",
-            )
-        except (KeyError, OSError, ValueError) as exc:
-            messagebox.showerror("Não foi possível excluir o preset", str(exc))
-
-    def _exportar_presets(self):
-        destino = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            filetypes=[("Arquivos JSON", "*.json")],
-            initialfile="ebookbuilder-presets.json",
-        )
-        if not destino:
-            return
-        try:
-            self.preset_store.exportar(destino)
-            self.lbl_status.configure(
-                text="✅ Presets exportados com sucesso.",
-                text_color="#10B981",
-            )
-        except (OSError, ValueError) as exc:
-            messagebox.showerror("Erro ao exportar presets", str(exc))
-
-    def _importar_presets(self):
-        origem = filedialog.askopenfilename(
-            filetypes=[("Arquivos JSON", "*.json")],
-            title="Importar presets",
-        )
-        if not origem:
-            return
-        try:
-            nomes = self.preset_store.importar(origem)
-            self._atualizar_lista_presets()
-            self.lbl_status.configure(
-                text=f"✅ {len(nomes)} preset(s) importado(s) com sucesso.",
-                text_color="#10B981",
-            )
-        except (FileNotFoundError, OSError, ValueError) as exc:
-            messagebox.showerror("Erro ao importar presets", str(exc))
-
-    def _carregar_preset(self, nome):
-        if not nome or nome == "Nenhum preset salvo":
-            return
-        try:
-            config = self.preset_store.carregar(nome)
-            self.caminho_arquivo_fonte.set(config.get("origem", ""))
-            self.pasta_destino.set(config.get("destino", ""))
-            self.titulo_ebook.set(config.get("titulo", ""))
-            self.sub_titulo_ebook.set(config.get("subtitulo", ""))
-            capa = config.get("capa", "")
-            self.url_capa.set(capa if str(capa).startswith(("http://", "https://")) else "")
-            self.caminho_capa_local.set(capa if capa and not self.url_capa.get() else "")
-            tema = config.get("tema", DEFAULT_THEME)
-            nome_tema = next(
-                (nome for nome, chave in self.mapa_temas.items() if chave == tema),
-                next(iter(self.mapa_temas)),
-            )
-            self.combo_tema.set(nome_tema)
-            self._atualizar_opcoes_variacao(tema)
-            for nome_variacao, variacao_id in self.mapa_variacoes_atuais.items():
-                if variacao_id == config.get("variacao"):
-                    self.combo_variacao.set(nome_variacao)
-                    break
-            self._executar_preview_direto(force=True)
-        except (KeyError, OSError, ValueError) as exc:
-            messagebox.showerror("Erro ao carregar preset", str(exc))
 
     def _executar_preview_direto(self, force=False):
         config = self._build_form_config()
