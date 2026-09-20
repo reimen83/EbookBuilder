@@ -1,9 +1,6 @@
-import os
-import subprocess
 import sys
 import threading
 import tkinter as tk
-from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog
 import traceback
 from queue import Empty, Queue
@@ -13,7 +10,6 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from compiler import EbookCompiler, ThemeEngine
-from history import HistoryStore
 from presets import PresetStore
 from preview_state import build_preview_signature
 from validation import (
@@ -83,9 +79,6 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_thread = None
         self._preview_results = Queue()
         self.preset_store = PresetStore()
-        self.history_store = HistoryStore()
-        self._historico_lookup = {}
-        self._projetos_lookup = {}
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -193,7 +186,6 @@ class EbookBuilderGUI(ctk.CTk):
         aba_projeto = abas.add("Projeto")
         aba_aparencia = abas.add("Aparência")
         aba_presets = abas.add("Presets")
-        aba_historico = abas.add("Histórico")
 
         # 1. ORIGEM E DESTINO
         frame_fonte = ctk.CTkFrame(aba_projeto)
@@ -341,32 +333,6 @@ class EbookBuilderGUI(ctk.CTk):
             command=self._importar_presets,
         ).pack(side="left")
 
-        frame_projetos = ctk.CTkFrame(aba_historico)
-        frame_projetos.pack(fill="x", padx=5, pady=(2, 8))
-        ctk.CTkLabel(frame_projetos, text="7. Projetos recentes", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
-        self.combo_projetos = ctk.CTkOptionMenu(
-            frame_projetos,
-            values=["Nenhum projeto recente"],
-            command=self._carregar_projeto_recente,
-        )
-        self.combo_projetos.pack(fill="x", padx=10, pady=(0, 6))
-        self._atualizar_lista_projetos()
-
-        frame_historico = ctk.CTkFrame(aba_historico)
-        frame_historico.pack(fill="x", padx=5, pady=(2, 8))
-        ctk.CTkLabel(frame_historico, text="8. Histórico local", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
-        self.combo_historico = ctk.CTkOptionMenu(
-            frame_historico,
-            values=["Nenhum item salvo"],
-            command=self._carregar_historico,
-        )
-        self.combo_historico.pack(fill="x", padx=10, pady=(0, 6))
-        row_historico = ctk.CTkFrame(frame_historico, fg_color="transparent")
-        row_historico.pack(fill="x", padx=10, pady=(0, 8))
-        ctk.CTkButton(row_historico, text="Abrir saída", width=110, command=self._abrir_historico_selecionado).pack(side="left")
-        ctk.CTkButton(row_historico, text="Atualizar", width=110, command=self._atualizar_lista_historico).pack(side="right")
-        self._atualizar_lista_historico()
-
         # BOTÃO PREVIEW
         self.btn_preview = ctk.CTkButton(aba_projeto, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=lambda: self._executar_preview_direto(force=True))
         self.btn_preview.pack(fill="x", padx=5, pady=(8, 4))
@@ -452,114 +418,6 @@ class EbookBuilderGUI(ctk.CTk):
         nomes = self.preset_store.listar() or ["Nenhum preset salvo"]
         self.combo_presets.configure(values=nomes)
         self.combo_presets.set(nomes[0])
-
-    def _descricao_historico(self, item):
-        saida = item.get("saida", item.get("destino", ""))
-        base = saida.split("/")[-1] if saida else "arquivo"
-        data = item.get("criado_em", "")[:10]
-        return f"{base} • {data}"
-
-    def _descricao_projeto(self, item):
-        origem = item.get("origem", "")
-        destino = item.get("destino", "")
-        nome = Path(origem).name if origem else "Projeto"
-        pasta = Path(destino).name if destino else "destino"
-        data = item.get("criado_em", "")[:10]
-        return f"{nome} • {pasta} • {data}"
-
-    def _atualizar_lista_projetos(self):
-        itens = self.history_store.listar_projetos(5)
-        self._projetos_lookup = {}
-        if not itens:
-            labels = ["Nenhum projeto recente"]
-        else:
-            labels = [self._descricao_projeto(item) for item in itens]
-            for label, item in zip(labels, itens):
-                self._projetos_lookup[label] = item
-        self.combo_projetos.configure(values=labels)
-        if labels:
-            self.combo_projetos.set(labels[0])
-
-    def _carregar_projeto_recente(self, valor):
-        if not valor or valor == "Nenhum projeto recente":
-            return
-        item = self._projetos_lookup.get(valor)
-        if item is None:
-            return
-        self.caminho_arquivo_fonte.set(item.get("origem", ""))
-        self.pasta_destino.set(item.get("destino", ""))
-        self.titulo_ebook.set(item.get("titulo", ""))
-        self.sub_titulo_ebook.set(item.get("subtitulo", ""))
-        tema = item.get("tema") or DEFAULT_THEME
-        nome_tema = next((nome for nome, chave in self.mapa_temas.items() if chave == tema), next(iter(self.mapa_temas)))
-        self.combo_tema.set(nome_tema)
-        self._atualizar_opcoes_variacao(tema)
-        variacao = item.get("variacao")
-        for nome_variacao, variacao_id in self.mapa_variacoes_atuais.items():
-            if variacao_id == variacao:
-                self.combo_variacao.set(nome_variacao)
-                break
-        self.lbl_status.configure(text="📁 Projeto recente carregado.", text_color="#F59E0B")
-        self._executar_preview_direto(force=True)
-
-    def _atualizar_lista_historico(self):
-        itens = self.history_store.listar(8)
-        self._historico_lookup = {}
-        if not itens:
-            labels = ["Nenhum item salvo"]
-        else:
-            labels = [self._descricao_historico(item) for item in itens]
-            for label, item in zip(labels, itens):
-                self._historico_lookup[label] = item
-        self.combo_historico.configure(values=labels)
-        if labels:
-            self.combo_historico.set(labels[0])
-
-    def _carregar_historico(self, valor):
-        if not valor or valor == "Nenhum item salvo":
-            return
-        item = self._historico_lookup.get(valor)
-        if item is None:
-            return
-        self.caminho_arquivo_fonte.set(item.get("origem", ""))
-        destino = item.get("destino", item.get("saida", ""))
-        if destino:
-            self.pasta_destino.set(str(Path(destino).parent))
-        self.titulo_ebook.set(item.get("titulo", ""))
-        self.sub_titulo_ebook.set(item.get("subtitulo", ""))
-        tema = item.get("tema") or DEFAULT_THEME
-        nome_tema = next((nome for nome, chave in self.mapa_temas.items() if chave == tema), next(iter(self.mapa_temas)))
-        self.combo_tema.set(nome_tema)
-        self._atualizar_opcoes_variacao(tema)
-        variacao = item.get("variacao")
-        for nome_variacao, variacao_id in self.mapa_variacoes_atuais.items():
-            if variacao_id == variacao:
-                self.combo_variacao.set(nome_variacao)
-                break
-        self.lbl_status.configure(text="📚 Configuração do histórico carregada.", text_color="#F59E0B")
-        self._executar_preview_direto(force=True)
-
-    def _abrir_historico_selecionado(self):
-        valor = self.combo_historico.get()
-        if not valor or valor == "Nenhum item salvo":
-            return
-        item = self._historico_lookup.get(valor)
-        caminho_saida = item.get("saida", item.get("destino", ""))
-        if not item or not caminho_saida:
-            return
-        caminho = Path(caminho_saida)
-        if not caminho.exists():
-            messagebox.showwarning("Arquivo não encontrado", f"O arquivo gerado não existe mais:\n{caminho}")
-            return
-        try:
-            if sys.platform.startswith("win"):
-                os.startfile(caminho)
-            elif sys.platform == "darwin":
-                subprocess.run(["open", str(caminho)], check=True)
-            else:
-                subprocess.run(["xdg-open", str(caminho)], check=True)
-        except Exception as exc:
-            messagebox.showerror("Não foi possível abrir o arquivo", str(exc))
 
     def _salvar_preset(self):
         nome = simpledialog.askstring("Salvar preset", "Nome do preset:")
@@ -784,15 +642,6 @@ class EbookBuilderGUI(ctk.CTk):
                 self.caminho_arquivo_fonte.set(str(fonte))
                 if not self.pasta_destino.get():
                     self.pasta_destino.set(str(fonte.parent))
-                self.history_store.registrar_projeto(
-                    origem=str(fonte),
-                    destino=self.pasta_destino.get().strip() or str(fonte.parent),
-                    titulo=self.titulo_ebook.get().strip(),
-                    subtitulo=self.sub_titulo_ebook.get().strip(),
-                    tema=self._tema_ativo(),
-                    variacao=self._obter_id_variacao_selecionada(),
-                )
-                self._atualizar_lista_projetos()
                 self._executar_preview_direto()
             except (FileNotFoundError, ValueError) as exc:
                 messagebox.showerror("Arquivo inválido", str(exc))
@@ -877,23 +726,10 @@ class EbookBuilderGUI(ctk.CTk):
 
     def _compilacao_sucesso(self, form, caminho, relatorio):
         self.btn_gerar.configure(state="normal")
-        try:
-            self.history_store.registrar(
-                origem=form.origem,
-                saida=caminho,
-                titulo=form.titulo_ativo,
-                subtitulo=form.subtitulo_ativo,
-                tema=form.tema_ativo,
-                variacao=form.variacao,
-            )
-            self._atualizar_lista_historico()
-        except ValueError as exc:
-            self.lbl_status.configure(text=f"⚠️ Arquivo salvo, mas o histórico falhou: {exc}", text_color="#F59E0B")
-        else:
-            self.lbl_status.configure(
-                text="✅ E-book gerado com sucesso!",
-                text_color="#10B981",
-            )
+        self.lbl_status.configure(
+            text="✅ E-book gerado com sucesso!",
+            text_color="#10B981",
+        )
         detalhes = [
             f"Formato: {relatorio['formato']}",
             f"Páginas geradas: {relatorio['paginas_geradas']}",
