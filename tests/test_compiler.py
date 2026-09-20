@@ -174,7 +174,7 @@ def test_colunas_pdf_recriam_divisorias_com_table_style(tmp_path: Path):
             ("Coluna esquerda", "Coluna direita", 100),
             ("Oração esquerda", "Oração direita", 120),
         ],
-        separadores=[(42, 298, 100), (298, 553, 100)],
+        separadores=[(42, 298, 100, 297), (298, 553, 100, 297)],
         divisorias=[(297, 50, 150)],
     )
 
