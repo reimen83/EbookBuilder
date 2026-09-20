@@ -78,22 +78,27 @@ class CapaHandler:
         for paragrafo in texto.splitlines() or [""]:
             atual = ""
             for palavra in paragrafo.split() or [""]:
-                candidato = f"{atual} {palavra}".strip()
+                separador = " " if atual else ""
+                candidato = f"{atual}{separador}{palavra}"
                 if atual and stringWidth(candidato, fonte, tamanho) > largura:
                     linhas.append(atual)
                     atual = ""
+                separador = " " if atual else ""
                 while palavra and stringWidth(
-                    f"{atual}{palavra}", fonte, tamanho
+                    f"{atual}{separador}{palavra}", fonte, tamanho
                 ) > largura:
                     corte = len(palavra)
                     while corte > 1 and stringWidth(
-                        f"{atual}{palavra[:corte]}", fonte, tamanho
+                        f"{atual}{separador}{palavra[:corte]}",
+                        fonte,
+                        tamanho,
                     ) > largura:
                         corte -= 1
-                    linhas.append(f"{atual}{palavra[:corte]}")
+                    linhas.append(f"{atual}{separador}{palavra[:corte]}")
                     atual = ""
                     palavra = palavra[corte:]
-                atual = f"{atual}{palavra}".strip()
+                    separador = ""
+                atual = f"{atual}{separador}{palavra}"
             if atual:
                 linhas.append(atual)
         return linhas or [""]
@@ -205,14 +210,16 @@ class CapaHandler:
                     ),
                 )
                 _, altura_titulo = titulo.wrap(largura_card - 60, 90)
-                titulo.drawOn(
-                    canvas_obj,
-                    x_card + 30,
-                    y_card + altura_card - 72 - altura_titulo,
-                )
+                titulo_y = y_card + altura_card - 45 - altura_titulo
+                titulo.drawOn(canvas_obj, x_card + 30, titulo_y)
 
+            linha_y = (
+                titulo_y - 14
+                if self.titulo
+                else y_card + altura_card - 85
+            )
             canvas_obj.setFillColor(self.tema_config["cor_linha"])
-            canvas_obj.rect(centro_x - 45, y_card + altura_card - 85, 90, 2, fill=True, stroke=False)
+            canvas_obj.rect(centro_x - 45, linha_y, 90, 2, fill=True, stroke=False)
 
             if self.sub_titulo:
                 canvas_obj.setFillColor(self.tema_config["cor_subtitulo_capa"])
@@ -243,7 +250,7 @@ class CapaHandler:
                 subtitulo.drawOn(
                     canvas_obj,
                     x_card + 30,
-                    y_card + 25 + max(0, (80 - altura_subtitulo) / 2),
+                    linha_y - 22 - altura_subtitulo,
                 )
 
         canvas_obj.restoreState()
