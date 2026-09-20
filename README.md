@@ -13,7 +13,30 @@ O EbookBuilder foi projetado para processamento local: os arquivos do usuário n
 - Extração automática de título e subtítulo do documento, com prioridade para valores
   preenchidos manualmente pelo usuário.
 - Geração de PDF com capa, estilos, cabeçalho, rodapé e paginação.
+- Preservação visual de PDFs já diagramados, incluindo estrutura, caixas, tabelas,
+  imagens e elementos gráficos.
+- Renderização de páginas preservadas em 300 DPI para melhorar a nitidez do texto
+  e das linhas.
+- Aplicação da cor de fundo do tema escolhido nas páginas preservadas, com proteção
+  automática de caixas e blocos decorativos.
 - Execução como aplicação desktop no Linux e no Windows.
+
+## Preservação visual de PDFs
+
+Quando o PDF de origem já possui uma diagramação completa, o EbookBuilder preserva
+cada página como uma imagem de alta resolução em vez de linearizar seu conteúdo.
+Essa estratégia mantém o posicionamento original de títulos, parágrafos, tabelas,
+caixas, linhas e imagens.
+
+O aplicativo também pode adaptar o fundo ao tema escolhido. A troca é aplicada
+somente ao fundo uniforme da página; regiões identificadas como caixas, tabelas ou
+blocos de design ficam protegidas. Em temas claros, o contraste de textos claros
+fora dessas regiões pode ser ajustado para melhorar a legibilidade.
+
+Como essas páginas são rasterizadas para preservar o layout, o texto visualizado
+nessas páginas não fica disponível como texto selecionável no PDF final. Isso não
+é DRM: é uma consequência técnica da preservação visual. OCR ou uma futura opção
+de camada de texto poderá ser implementada se a seleção e a cópia forem necessárias.
 
 ## Execução no Linux a partir do código-fonte
 
