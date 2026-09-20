@@ -544,9 +544,10 @@ class EbookBuilderGUI(ctk.CTk):
         if not valor or valor == "Nenhum item salvo":
             return
         item = self._historico_lookup.get(valor)
-        if not item or not item.get("saida"):
+        caminho_saida = item.get("saida", item.get("destino", ""))
+        if not item or not caminho_saida:
             return
-        caminho = Path(item["saida"])
+        caminho = Path(caminho_saida)
         if not caminho.exists():
             messagebox.showwarning("Arquivo não encontrado", f"O arquivo gerado não existe mais:\n{caminho}")
             return
@@ -863,7 +864,7 @@ class EbookBuilderGUI(ctk.CTk):
                 " • ".join(avisos) or "Estrutura simples detectada",
             )
             relatorio = compiler.compilar(analise)
-            self.after(0, self._compilacao_sucesso, saída, relatorio)
+            self.after(0, self._compilacao_sucesso, form, saída, relatorio)
         except Exception as e:
             traceback.print_exc()
             self.after(0, self._compilacao_erro, str(e))
@@ -874,7 +875,7 @@ class EbookBuilderGUI(ctk.CTk):
             text_color="#F59E0B",
         )
 
-    def _compilacao_sucesso(self, caminho, relatorio):
+    def _compilacao_sucesso(self, form, caminho, relatorio):
         self.btn_gerar.configure(state="normal")
         try:
             self.history_store.registrar(
