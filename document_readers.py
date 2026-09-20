@@ -4,6 +4,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Flowable, PageBreak
 from PIL import Image
 from PIL import ImageChops
+from PIL import ImageDraw
 
 try:
     import docx
@@ -33,10 +34,16 @@ class PdfPageImage(Flowable):
         page_height,
         background_color=None,
         text_color=None,
+        protected_regions=None,
     ):
         super().__init__()
         self.image = ImageReader(
-            self.recolorir_fundo(image, background_color, text_color=text_color)
+            self.recolorir_fundo(
+                image,
+                background_color,
+                text_color=text_color,
+                protected_regions=protected_regions,
+            )
             if background_color is not None
             else image
         )
@@ -50,6 +57,7 @@ class PdfPageImage(Flowable):
         text_color=None,
         tolerancia=18,
         limiar_texto_claro=185,
+        protected_regions=None,
     ):
         """Troca apenas o fundo uniforme identificado pelas bordas da página."""
         if background_color is None:
@@ -71,6 +79,19 @@ class PdfPageImage(Flowable):
             else None
         )
         rgb = imagem.convert("RGB")
+        protecao = Image.new("L", rgb.size, 255)
+        if protected_regions:
+            desenho = ImageDraw.Draw(protecao)
+            for x0, top, x1, bottom in protected_regions:
+                desenho.rectangle(
+                    (
+                        max(0, int(x0)),
+                        max(0, int(top)),
+                        min(largura - 1, int(x1)),
+                        min(altura - 1, int(bottom)),
+                    ),
+                    fill=0,
+                )
         origem = Image.new("RGB", rgb.size, fundo_origem[:3])
         diferenca = ImageChops.difference(rgb, origem)
         mascara = Image.new("L", rgb.size, 255)
@@ -91,7 +112,10 @@ class PdfPageImage(Flowable):
             pixels_resultado = resultado.load()
             for y in range(altura):
                 for x in range(largura):
-                    if mascara.getpixel((x, y)) == 255:
+                    if (
+                        mascara.getpixel((x, y)) == 255
+                        or protecao.getpixel((x, y)) == 0
+                    ):
                         continue
                     pixel = pixels_origem[x, y]
                     luminancia = (
@@ -238,13 +262,38 @@ class PdfParser(BaseDocumentParser):
         ]
         return resultado, separadores, divisorias
 
-    @staticmethod
+    def _regioes_protegidas(self, pagina, tamanho_imagem, margem=4):
+        """Mapeia retângulos de design do PDF para coordenadas da imagem."""
+        largura, altura = tamanho_imagem
+        escala_x = largura / pagina.width
+        escala_y = altura / pagina.height
+        regioes = []
+        for retangulo in getattr(pagina, "rects", []):
+            largura_retangulo = retangulo["x1"] - retangulo["x0"]
+            altura_retangulo = retangulo["bottom"] - retangulo["top"]
+            if largura_retangulo < 24 or altura_retangulo < 12:
+                continue
+            if largura_retangulo >= pagina.width * 0.95:
+                continue
+            regioes.append(
+                (
+                    retangulo["x0"] * escala_x - margem,
+                    retangulo["top"] * escala_y - margem,
+                    retangulo["x1"] * escala_x + margem,
+                    retangulo["bottom"] * escala_y + margem,
+                )
+            )
+        return regioes
+
     def _preservar_pagina_como_imagem(
+        self,
         pagina,
         background_color=None,
         text_color=None,
+        protected_regions=None,
     ):
         imagem = pagina.to_image(resolution=150).original
+        protected_regions = self._regioes_protegidas(pagina, imagem.size)
         return [
             PdfPageImage(
                 imagem,
@@ -252,6 +301,7 @@ class PdfParser(BaseDocumentParser):
                 pagina.height,
                 background_color=background_color,
                 text_color=text_color,
+                protected_regions=protected_regions,
             ),
             PageBreak(),
         ]
