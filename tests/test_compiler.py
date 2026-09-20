@@ -315,6 +315,20 @@ def test_pdf_com_imagem_preserva_a_pagina_renderizada(tmp_path: Path):
     assert isinstance(flowables[0], PdfPageImage)
 
 
+def test_pdf_page_image_recolore_fundo_sem_alterar_texto():
+    imagem = Image.new("RGB", (12, 12), color=(240, 240, 240))
+    for x in range(3, 9):
+        imagem.putpixel((x, 6), (20, 20, 20))
+
+    recolorida = PdfPageImage.recolorir_fundo(
+        imagem,
+        (0.1, 0.2, 0.3),
+    )
+
+    assert recolorida.getpixel((0, 0))[:3] == (25, 51, 76)
+    assert recolorida.getpixel((5, 6))[:3] == (20, 20, 20)
+
+
 def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
     compiler = EbookCompiler("conteudo.md", "saida.pdf")
     tabela = compiler.renderer._gerar_colunas_pdf_flowable(

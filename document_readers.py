@@ -2,6 +2,8 @@ import os
 
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Flowable, PageBreak
+from PIL import Image
+from PIL import ImageChops
 
 try:
     import docx
@@ -24,11 +26,46 @@ class BaseDocumentParser:
 
 
 class PdfPageImage(Flowable):
-    def __init__(self, image, page_width, page_height):
+    def __init__(self, image, page_width, page_height, background_color=None):
         super().__init__()
-        self.image = ImageReader(image)
+        self.image = ImageReader(
+            self.recolorir_fundo(image, background_color)
+            if background_color is not None
+            else image
+        )
         self.page_width = page_width
         self.page_height = page_height
+
+    @staticmethod
+    def recolorir_fundo(image, background_color, tolerancia=18):
+        """Troca apenas o fundo uniforme identificado pelas bordas da página."""
+        if background_color is None:
+            return image
+
+        imagem = image.convert("RGBA")
+        largura, altura = imagem.size
+        pontos_borda = [
+            imagem.getpixel((0, 0)),
+            imagem.getpixel((largura - 1, 0)),
+            imagem.getpixel((0, altura - 1)),
+            imagem.getpixel((largura - 1, altura - 1)),
+        ]
+        fundo_origem = max(set(pontos_borda), key=pontos_borda.count)
+        alvo = tuple(int(c * 255) if 0 <= c <= 1 else int(c) for c in background_color)
+        rgb = imagem.convert("RGB")
+        origem = Image.new("RGB", rgb.size, fundo_origem[:3])
+        diferenca = ImageChops.difference(rgb, origem)
+        mascara = Image.new("L", rgb.size, 255)
+        limiar = 255 if tolerancia >= 255 else tolerancia
+        for canal in diferenca.split():
+            canal_mascara = canal.point(
+                lambda valor: 255 if valor <= limiar else 0,
+            )
+            mascara = ImageChops.multiply(mascara, canal_mascara)
+        fundo_novo = Image.new("RGB", rgb.size, alvo)
+        resultado = Image.composite(fundo_novo, rgb, mascara).convert("RGBA")
+        resultado.putalpha(imagem.getchannel("A"))
+        return resultado
 
     def wrap(self, available_width, available_height):
         scale = min(available_width / self.page_width, available_height / self.page_height)
@@ -160,15 +197,28 @@ class PdfParser(BaseDocumentParser):
         return resultado, separadores, divisorias
 
     @staticmethod
-    def _preservar_pagina_como_imagem(pagina):
+    def _preservar_pagina_como_imagem(pagina, background_color=None):
         imagem = pagina.to_image(resolution=150).original
-        return [PdfPageImage(imagem, pagina.width, pagina.height), PageBreak()]
+        return [
+            PdfPageImage(
+                imagem,
+                pagina.width,
+                pagina.height,
+                background_color=background_color,
+            ),
+            PageBreak(),
+        ]
 
     def parse(self, caminho_pdf):
         if pdfplumber is None:
             raise ImportError("A biblioteca 'pdfplumber' não está instalada.")
 
         conteudo = []
+        background_color = None
+        if self.renderer is not None:
+            cor_fundo = self.renderer.theme_cfg.get("cor_fundo")
+            if cor_fundo is not None:
+                background_color = (cor_fundo.red, cor_fundo.green, cor_fundo.blue)
         with pdfplumber.open(caminho_pdf) as pdf:
             for pagina in pdf.pages:
                 colunas_extraidas = self._extrair_linhas_de_duas_colunas(pagina)
@@ -185,7 +235,12 @@ class PdfParser(BaseDocumentParser):
 
                 # Um PDF já diagramado não deve ser linearizado: a renderização
                 # da página preserva tipografia, espaçamentos, tabelas e imagens.
-                conteudo.extend(self._preservar_pagina_como_imagem(pagina))
+                conteudo.extend(
+                    self._preservar_pagina_como_imagem(
+                        pagina,
+                        background_color=background_color,
+                    )
+                )
 
         if conteudo and isinstance(conteudo[-1], PageBreak):
             conteudo.pop()
