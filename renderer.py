@@ -11,6 +11,22 @@ class _SegmentedColumnsTable(Table):
         self.divider_segments = divider_segments or []
         self.divider_color = divider_color
 
+    def split(self, availWidth, availHeight):
+        fragments = super().split(availWidth, availHeight)
+        if len(fragments) <= 1 or not self.divider_segments:
+            return fragments
+
+        offset = 0
+        for fragment in fragments:
+            row_count = len(fragment._rowHeights)
+            fragment.divider_segments = [
+                (max(start - offset, 0), min(end - offset, row_count - 1))
+                for start, end in self.divider_segments
+                if end >= offset and start < offset + row_count
+            ]
+            offset += row_count
+        return fragments
+
     def draw(self):
         super().draw()
         if not self.divider_segments:

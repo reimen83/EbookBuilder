@@ -196,6 +196,27 @@ def test_colunas_pdf_recriam_divisorias_com_table_style(tmp_path: Path):
     assert tabela._linecmds[0][3] == 0.35
 
 
+def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
+    compiler = EbookCompiler("conteudo.md", "saida.pdf")
+    tabela = compiler.renderer._gerar_colunas_pdf_flowable(
+        [(f"Esquerda {i}", f"Direita {i}", i * 10) for i in range(8)],
+        separadores=[(42, 298, 130, 297)],
+        divisorias=[(297, 0, 80), (297, 80, 160)],
+    )
+
+    tabela._rowHeights = [20] * 8
+    fragmentos = tabela.split(487, 70)
+
+    assert len(fragmentos) >= 2
+    assert fragmentos[0].divider_segments
+    assert fragmentos[1].divider_segments
+    assert all(
+        0 <= inicio <= fim < len(fragmento._rowHeights)
+        for fragmento in fragmentos
+        for inicio, fim in fragmento.divider_segments
+    )
+
+
 def test_preview_usa_temporario_unico_e_limpa_arquivo(tmp_path: Path, monkeypatch):
     capa = tmp_path / "capa.png"
     Image.new("RGB", (40, 40), color="navy").save(capa)
