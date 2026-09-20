@@ -257,6 +257,22 @@ def test_pdf_sem_palavras_nao_e_interpretado_como_duas_colunas():
     assert parser._extrair_linhas_de_duas_colunas(pagina) is None
 
 
+def test_pdf_com_imagem_preserva_a_pagina_renderizada(tmp_path: Path):
+    from document_readers import PdfPageImage
+
+    fonte = tmp_path / "pagina-com-imagem.pdf"
+    imagem = tmp_path / "figura.png"
+    Image.new("RGB", (80, 80), color="orange").save(imagem)
+    pdf = canvas.Canvas(str(fonte), pagesize=A4)
+    pdf.drawImage(str(imagem), 100, 500, width=80, height=80)
+    pdf.drawString(100, 450, "Texto da página")
+    pdf.save()
+
+    flowables = EbookCompiler(str(fonte), str(tmp_path / "saida.pdf"))._parse_pdf(str(fonte))
+
+    assert isinstance(flowables[0], PdfPageImage)
+
+
 def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
     compiler = EbookCompiler("conteudo.md", "saida.pdf")
     tabela = compiler.renderer._gerar_colunas_pdf_flowable(
