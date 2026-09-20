@@ -9,6 +9,7 @@ from reportlab.pdfgen import canvas
 
 import compiler as compiler_module
 from compiler import EbookCompiler, SmartParser, ThemeEngine
+from document_readers import PdfPageImage
 
 
 def test_inferir_estrutura_reconhece_titulo_secao_e_lista():
@@ -282,6 +283,20 @@ def test_pdf_sem_palavras_nao_e_interpretado_como_duas_colunas():
     parser = PdfParser(None, SmartParser)
 
     assert parser._extrair_linhas_de_duas_colunas(pagina) is None
+
+
+def test_pdf_em_fluxo_unico_nao_e_interpretado_como_duas_colunas(tmp_path: Path):
+    fonte = tmp_path / "fluxo-unico.pdf"
+    pdf = canvas.Canvas(str(fonte), pagesize=A4)
+    for indice in range(12):
+        pdf.drawString(50, 780 - indice * 24, f"Texto de uma única linha com conteúdo {indice}")
+    pdf.save()
+
+    compiler = EbookCompiler(str(fonte), str(tmp_path / "saida.pdf"))
+    flowables = compiler._parse_pdf(str(fonte))
+
+    assert not any(isinstance(flowable, Table) for flowable in flowables)
+    assert isinstance(flowables[0], PdfPageImage)
 
 
 def test_pdf_com_imagem_preserva_a_pagina_renderizada(tmp_path: Path):
