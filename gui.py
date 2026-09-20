@@ -178,11 +178,8 @@ class EbookBuilderGUI(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # ==================== PAINEL ESQUERDO ====================
-        frame_esquerda = ctk.CTkScrollableFrame(self, label_text="Configurações do E-book")
+        frame_esquerda = ctk.CTkFrame(self)
         self.frame_configuracoes = frame_esquerda
-        self.bind_all("<MouseWheel>", self._rolar_configuracoes, add="+")
-        self.bind_all("<Button-4>", self._rolar_configuracoes, add="+")
-        self.bind_all("<Button-5>", self._rolar_configuracoes, add="+")
         frame_esquerda.grid(row=0, column=0, sticky="nsew", padx=(15, 7), pady=15)
 
         lbl_titulo = ctk.CTkLabel(frame_esquerda, text="EbookBuilder", font=ctk.CTkFont(size=24, weight="bold"), text_color="#F59E0B")
@@ -191,8 +188,15 @@ class EbookBuilderGUI(ctk.CTk):
         lbl_subtitulo = ctk.CTkLabel(frame_esquerda, text="Transforme textos em e-books estilizados e diagramados.", font=ctk.CTkFont(size=12), text_color="#94A3B8")
         lbl_subtitulo.pack(anchor="w", padx=10, pady=(0, 10))
 
+        abas = ctk.CTkTabview(frame_esquerda)
+        abas.pack(fill="both", expand=True, padx=5, pady=(0, 8))
+        aba_projeto = abas.add("Projeto")
+        aba_aparencia = abas.add("Aparência")
+        aba_presets = abas.add("Presets")
+        aba_historico = abas.add("Histórico")
+
         # 1. ORIGEM E DESTINO
-        frame_fonte = ctk.CTkFrame(frame_esquerda)
+        frame_fonte = ctk.CTkFrame(aba_projeto)
         frame_fonte.pack(fill="x", padx=5, pady=6)
         ctk.CTkLabel(frame_fonte, text="1. Arquivos (Origem e Destino)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
 
@@ -211,7 +215,7 @@ class EbookBuilderGUI(ctk.CTk):
         ctk.CTkButton(box_destino, text="Destino", width=90, command=self._procurar_destino).pack(side="right")
 
         # 2. TÍTULOS
-        frame_titulos = ctk.CTkFrame(frame_esquerda)
+        frame_titulos = ctk.CTkFrame(aba_projeto)
         frame_titulos.pack(fill="x", padx=5, pady=6)
         ctk.CTkLabel(frame_titulos, text="2. Título e Subtítulo da Capa", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 2))
 
@@ -246,23 +250,23 @@ class EbookBuilderGUI(ctk.CTk):
         self._adicionar_suporte_clique_direito(self.entry_subtitulo)
 
         # 3. CAPA PERSONALIZADA
-        frame_capa = ctk.CTkFrame(frame_esquerda)
+        frame_capa = ctk.CTkFrame(aba_aparencia)
         frame_capa.pack(fill="x", padx=5, pady=6)
         ctk.CTkLabel(frame_capa, text="3. Imagem de Capa Personalizada (Opcional)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
 
-        entry_url = ctk.CTkEntry(frame_capa, textvariable=self.url_capa, placeholder_text="URL da Imagem (Ex: Unsplash)...")
+        entry_url = ctk.CTkEntry(frame_capa, textvariable=self.url_capa, placeholder_text="URL da imagem (opcional)...")
         entry_url.pack(fill="x", padx=10, pady=(0, 6))
         self._adicionar_suporte_clique_direito(entry_url)
 
         box_capa_local = ctk.CTkFrame(frame_capa, fg_color="transparent")
         box_capa_local.pack(fill="x", padx=10, pady=(0, 8))
-        entry_capa_local = ctk.CTkEntry(box_capa_local, textvariable=self.caminho_capa_local, placeholder_text="OU imagem no computador...")
+        entry_capa_local = ctk.CTkEntry(box_capa_local, textvariable=self.caminho_capa_local, placeholder_text="Imagem local (opcional)...")
         entry_capa_local.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self._adicionar_suporte_clique_direito(entry_capa_local)
         ctk.CTkButton(box_capa_local, text="Procurar", width=90, command=self._procurar_capa_local).pack(side="right")
 
         # 4. TEMAS E VARIAÇÕES
-        frame_tema = ctk.CTkFrame(frame_esquerda)
+        frame_tema = ctk.CTkFrame(aba_aparencia)
         frame_tema.pack(fill="x", padx=5, pady=6)
         
         ctk.CTkLabel(frame_tema, text="4. Tema Visual do PDF", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
@@ -288,8 +292,13 @@ class EbookBuilderGUI(ctk.CTk):
 
         self._atualizar_opcoes_variacao(self.mapa_temas[self.combo_tema.get()])
 
-        frame_presets = ctk.CTkFrame(frame_esquerda, fg_color="transparent")
+        frame_presets = ctk.CTkFrame(aba_presets, fg_color="transparent")
         frame_presets.pack(fill="x", padx=5, pady=(2, 4))
+        ctk.CTkLabel(
+            aba_presets,
+            text="6. Presets de configuração",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).pack(anchor="w", padx=10, pady=(8, 2))
         self.combo_presets = ctk.CTkOptionMenu(
             frame_presets,
             values=self.preset_store.listar() or ["Nenhum preset salvo"],
@@ -332,9 +341,9 @@ class EbookBuilderGUI(ctk.CTk):
             command=self._importar_presets,
         ).pack(side="left")
 
-        frame_projetos = ctk.CTkFrame(frame_esquerda)
+        frame_projetos = ctk.CTkFrame(aba_historico)
         frame_projetos.pack(fill="x", padx=5, pady=(2, 8))
-        ctk.CTkLabel(frame_projetos, text="6. Projetos recentes", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
+        ctk.CTkLabel(frame_projetos, text="7. Projetos recentes", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
         self.combo_projetos = ctk.CTkOptionMenu(
             frame_projetos,
             values=["Nenhum projeto recente"],
@@ -343,9 +352,9 @@ class EbookBuilderGUI(ctk.CTk):
         self.combo_projetos.pack(fill="x", padx=10, pady=(0, 6))
         self._atualizar_lista_projetos()
 
-        frame_historico = ctk.CTkFrame(frame_esquerda)
+        frame_historico = ctk.CTkFrame(aba_historico)
         frame_historico.pack(fill="x", padx=5, pady=(2, 8))
-        ctk.CTkLabel(frame_historico, text="7. Histórico local", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
+        ctk.CTkLabel(frame_historico, text="8. Histórico local", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
         self.combo_historico = ctk.CTkOptionMenu(
             frame_historico,
             values=["Nenhum item salvo"],
@@ -359,14 +368,14 @@ class EbookBuilderGUI(ctk.CTk):
         self._atualizar_lista_historico()
 
         # BOTÃO PREVIEW
-        self.btn_preview = ctk.CTkButton(frame_esquerda, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=lambda: self._executar_preview_direto(force=True))
+        self.btn_preview = ctk.CTkButton(aba_projeto, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=lambda: self._executar_preview_direto(force=True))
         self.btn_preview.pack(fill="x", padx=5, pady=(8, 4))
 
         # BOTÃO GERAR COMPLETO
-        self.btn_gerar = ctk.CTkButton(frame_esquerda, text="🚀 GERAR E-BOOK COMPLETO", font=ctk.CTkFont(size=15, weight="bold"), fg_color="#10B981", hover_color="#059669", height=45, command=self._iniciar_compilacao)
+        self.btn_gerar = ctk.CTkButton(aba_projeto, text="🚀 GERAR E-BOOK COMPLETO", font=ctk.CTkFont(size=15, weight="bold"), fg_color="#10B981", hover_color="#059669", height=45, command=self._iniciar_compilacao)
         self.btn_gerar.pack(fill="x", padx=5, pady=(4, 8))
 
-        self.lbl_status = ctk.CTkLabel(frame_esquerda, text="Pronto para gerar seu e-book.", font=ctk.CTkFont(size=12), text_color="#94A3B8")
+        self.lbl_status = ctk.CTkLabel(aba_projeto, text="Pronto para gerar seu e-book.", font=ctk.CTkFont(size=12), text_color="#94A3B8")
         self.lbl_status.pack(pady=(0, 8))
 
         # ==================== PAINEL DIREITO: PREVIEW ====================
