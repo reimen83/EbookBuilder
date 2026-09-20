@@ -210,6 +210,8 @@ def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
     assert len(fragmentos) >= 2
     assert fragmentos[0].divider_segments
     assert fragmentos[1].divider_segments
+    assert fragmentos[0].divider_color is tabela.divider_color
+    assert fragmentos[1].divider_color is tabela.divider_color
     assert all(
         0 <= inicio <= fim < len(fragmento._rowHeights)
         for fragmento in fragmentos
