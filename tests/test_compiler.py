@@ -342,6 +342,19 @@ def test_pdf_page_image_escurece_texto_claro_em_tema_claro():
     assert recolorida.getpixel((5, 6))[:3] == (25, 25, 25)
 
 
+def test_pdf_page_image_clareia_texto_escuro_em_tema_escuro():
+    imagem = Image.new("RGB", (12, 12), color=(240, 240, 240))
+    imagem.putpixel((5, 6), (20, 20, 20))
+
+    recolorida = PdfPageImage.recolorir_fundo(
+        imagem,
+        (0.05, 0.05, 0.08),
+        text_color=(0.9, 0.9, 0.9),
+    )
+
+    assert recolorida.getpixel((5, 6))[:3] == (229, 229, 229)
+
+
 def test_pdf_page_image_preserva_texto_claro_em_bloco_protegido():
     imagem = Image.new("RGB", (20, 20), color=(240, 240, 240))
     imagem.putpixel((10, 10), (210, 220, 240))
