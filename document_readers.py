@@ -1,6 +1,7 @@
 import os
 
-from reportlab.platypus import PageBreak
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Flowable, PageBreak
 
 try:
     import docx
@@ -20,6 +21,31 @@ class BaseDocumentParser:
 
     def parse(self, caminho_arquivo):
         raise NotImplementedError
+
+
+class PdfPageImage(Flowable):
+    def __init__(self, image, page_width, page_height):
+        super().__init__()
+        self.image = ImageReader(image)
+        self.page_width = page_width
+        self.page_height = page_height
+
+    def wrap(self, available_width, available_height):
+        scale = min(available_width / self.page_width, available_height / self.page_height)
+        self.width = self.page_width * scale
+        self.height = self.page_height * scale
+        return self.width, self.height
+
+    def draw(self):
+        self.canv.drawImage(
+            self.image,
+            0,
+            0,
+            width=self.width,
+            height=self.height,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
 
 
 class MarkdownParser(BaseDocumentParser):
@@ -110,6 +136,16 @@ class PdfParser(BaseDocumentParser):
         conteudo = []
         with pdfplumber.open(caminho_pdf) as pdf:
             for pagina in pdf.pages:
+                if pagina.images:
+                    imagem = pagina.to_image(resolution=150).original
+                    conteudo.extend(
+                        [
+                            PdfPageImage(imagem, pagina.width, pagina.height),
+                            PageBreak(),
+                        ]
+                    )
+                    continue
+
                 colunas_extraidas = self._extrair_linhas_de_duas_colunas(pagina)
                 if colunas_extraidas is not None:
                     linhas_colunas, separadores, divisorias = colunas_extraidas
@@ -138,6 +174,8 @@ class PdfParser(BaseDocumentParser):
                     if texto_pagina:
                         texto_formatado = self.smart_parser.inferir_estrutura(texto_pagina)
                         conteudo.extend(self.renderer._parse_markdown(texto_formatado))
+                    else:
+                        conteudo.append(PageBreak())
 
         if conteudo and isinstance(conteudo[-1], PageBreak):
             conteudo.pop()
