@@ -1,6 +1,7 @@
 import sys
 import threading
 import tkinter as tk
+import traceback
 from queue import Empty, Queue
 from dataclasses import dataclass
 from tkinter import filedialog, messagebox
@@ -504,6 +505,7 @@ class EbookBuilderGUI(ctk.CTk):
             ).compilar()
             self.after(0, self._compilacao_sucesso, saída)
         except Exception as e:
+            traceback.print_exc()
             self.after(0, self._compilacao_erro, str(e))
 
     def _compilacao_sucesso(self, caminho):
