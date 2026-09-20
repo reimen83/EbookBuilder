@@ -110,7 +110,25 @@ class PdfPageImage(Flowable):
         fundo_luminancia = (
             0.2126 * alvo[0] + 0.7152 * alvo[1] + 0.0722 * alvo[2]
         )
-        if alvo_texto is not None and fundo_luminancia >= 150:
+        ajustar_texto_claro = (
+            alvo_texto is not None
+            and fundo_luminancia >= 150
+            and fundo_luminancia - (
+                0.2126 * alvo_texto[0]
+                + 0.7152 * alvo_texto[1]
+                + 0.0722 * alvo_texto[2]
+            ) >= 60
+        )
+        ajustar_texto_escuro = (
+            alvo_texto is not None
+            and fundo_luminancia < 150
+            and (
+                0.2126 * alvo_texto[0]
+                + 0.7152 * alvo_texto[1]
+                + 0.0722 * alvo_texto[2]
+            ) - fundo_luminancia >= 60
+        )
+        if ajustar_texto_claro or ajustar_texto_escuro:
             pixels_origem = rgb.load()
             pixels_resultado = resultado.load()
             for y in range(altura):
@@ -130,7 +148,18 @@ class PdfPageImage(Flowable):
                         abs(pixel[indice] - fundo_origem[indice])
                         for indice in range(3)
                     )
-                    if luminancia >= limiar_texto_claro and distancia_fundo >= tolerancia * 2:
+                    texto_claro = (
+                        ajustar_texto_claro
+                        and luminancia >= limiar_texto_claro
+                    )
+                    texto_escuro = (
+                        ajustar_texto_escuro
+                        and luminancia <= 100
+                    )
+                    if (
+                        (texto_claro or texto_escuro)
+                        and distancia_fundo >= tolerancia * 2
+                    ):
                         pixels_resultado[x, y] = (*alvo_texto, pixels_resultado[x, y][3])
 
         resultado.putalpha(imagem.getchannel("A"))
