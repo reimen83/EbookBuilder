@@ -1,6 +1,9 @@
+import os
+import subprocess
 import sys
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog
 import traceback
 from queue import Empty, Queue
@@ -10,6 +13,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from compiler import EbookCompiler, ThemeEngine
+from history import HistoryStore
 from presets import PresetStore
 from preview_state import build_preview_signature
 from validation import (
@@ -79,6 +83,9 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_thread = None
         self._preview_results = Queue()
         self.preset_store = PresetStore()
+        self.history_store = HistoryStore()
+        self._historico_lookup = {}
+        self._projetos_lookup = {}
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -289,12 +296,67 @@ class EbookBuilderGUI(ctk.CTk):
             command=self._carregar_preset,
         )
         self.combo_presets.pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        frame_botoes_presets = ctk.CTkFrame(frame_presets, fg_color="transparent")
+        frame_botoes_presets.pack(side="right")
         ctk.CTkButton(
-            frame_presets,
-            text="Salvar preset",
-            width=110,
+            frame_botoes_presets,
+            text="Salvar",
+            width=72,
             command=self._salvar_preset,
-        ).pack(side="right")
+        ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(
+            frame_botoes_presets,
+            text="Renomear",
+            width=78,
+            command=self._renomear_preset,
+        ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(
+            frame_botoes_presets,
+            text="Excluir",
+            width=68,
+            fg_color="#B91C1C",
+            hover_color="#991B1B",
+            command=self._excluir_preset,
+        ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(
+            frame_botoes_presets,
+            text="Exportar",
+            width=74,
+            command=self._exportar_presets,
+        ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(
+            frame_botoes_presets,
+            text="Importar",
+            width=74,
+            command=self._importar_presets,
+        ).pack(side="left")
+
+        frame_projetos = ctk.CTkFrame(frame_esquerda)
+        frame_projetos.pack(fill="x", padx=5, pady=(2, 8))
+        ctk.CTkLabel(frame_projetos, text="6. Projetos recentes", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
+        self.combo_projetos = ctk.CTkOptionMenu(
+            frame_projetos,
+            values=["Nenhum projeto recente"],
+            command=self._carregar_projeto_recente,
+        )
+        self.combo_projetos.pack(fill="x", padx=10, pady=(0, 6))
+        self._atualizar_lista_projetos()
+
+        frame_historico = ctk.CTkFrame(frame_esquerda)
+        frame_historico.pack(fill="x", padx=5, pady=(2, 8))
+        ctk.CTkLabel(frame_historico, text="7. Histórico local", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
+        self.combo_historico = ctk.CTkOptionMenu(
+            frame_historico,
+            values=["Nenhum item salvo"],
+            command=self._carregar_historico,
+        )
+        self.combo_historico.pack(fill="x", padx=10, pady=(0, 6))
+        row_historico = ctk.CTkFrame(frame_historico, fg_color="transparent")
+        row_historico.pack(fill="x", padx=10, pady=(0, 8))
+        ctk.CTkButton(row_historico, text="Abrir saída", width=110, command=self._abrir_historico_selecionado).pack(side="left")
+        ctk.CTkButton(row_historico, text="Atualizar", width=110, command=self._atualizar_lista_historico).pack(side="right")
+        self._atualizar_lista_historico()
 
         # BOTÃO PREVIEW
         self.btn_preview = ctk.CTkButton(frame_esquerda, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=lambda: self._executar_preview_direto(force=True))
@@ -382,6 +444,113 @@ class EbookBuilderGUI(ctk.CTk):
         self.combo_presets.configure(values=nomes)
         self.combo_presets.set(nomes[0])
 
+    def _descricao_historico(self, item):
+        saida = item.get("saida", item.get("destino", ""))
+        base = saida.split("/")[-1] if saida else "arquivo"
+        data = item.get("criado_em", "")[:10]
+        return f"{base} • {data}"
+
+    def _descricao_projeto(self, item):
+        origem = item.get("origem", "")
+        destino = item.get("destino", "")
+        nome = Path(origem).name if origem else "Projeto"
+        pasta = Path(destino).name if destino else "destino"
+        data = item.get("criado_em", "")[:10]
+        return f"{nome} • {pasta} • {data}"
+
+    def _atualizar_lista_projetos(self):
+        itens = self.history_store.listar_projetos(5)
+        self._projetos_lookup = {}
+        if not itens:
+            labels = ["Nenhum projeto recente"]
+        else:
+            labels = [self._descricao_projeto(item) for item in itens]
+            for label, item in zip(labels, itens):
+                self._projetos_lookup[label] = item
+        self.combo_projetos.configure(values=labels)
+        if labels:
+            self.combo_projetos.set(labels[0])
+
+    def _carregar_projeto_recente(self, valor):
+        if not valor or valor == "Nenhum projeto recente":
+            return
+        item = self._projetos_lookup.get(valor)
+        if item is None:
+            return
+        self.caminho_arquivo_fonte.set(item.get("origem", ""))
+        self.pasta_destino.set(item.get("destino", ""))
+        self.titulo_ebook.set(item.get("titulo", ""))
+        self.sub_titulo_ebook.set(item.get("subtitulo", ""))
+        tema = item.get("tema") or DEFAULT_THEME
+        nome_tema = next((nome for nome, chave in self.mapa_temas.items() if chave == tema), next(iter(self.mapa_temas)))
+        self.combo_tema.set(nome_tema)
+        self._atualizar_opcoes_variacao(tema)
+        variacao = item.get("variacao")
+        for nome_variacao, variacao_id in self.mapa_variacoes_atuais.items():
+            if variacao_id == variacao:
+                self.combo_variacao.set(nome_variacao)
+                break
+        self.lbl_status.configure(text="📁 Projeto recente carregado.", text_color="#F59E0B")
+        self._executar_preview_direto(force=True)
+
+    def _atualizar_lista_historico(self):
+        itens = self.history_store.listar(8)
+        self._historico_lookup = {}
+        if not itens:
+            labels = ["Nenhum item salvo"]
+        else:
+            labels = [self._descricao_historico(item) for item in itens]
+            for label, item in zip(labels, itens):
+                self._historico_lookup[label] = item
+        self.combo_historico.configure(values=labels)
+        if labels:
+            self.combo_historico.set(labels[0])
+
+    def _carregar_historico(self, valor):
+        if not valor or valor == "Nenhum item salvo":
+            return
+        item = self._historico_lookup.get(valor)
+        if item is None:
+            return
+        self.caminho_arquivo_fonte.set(item.get("origem", ""))
+        destino = item.get("destino", item.get("saida", ""))
+        if destino:
+            self.pasta_destino.set(str(Path(destino).parent))
+        self.titulo_ebook.set(item.get("titulo", ""))
+        self.sub_titulo_ebook.set(item.get("subtitulo", ""))
+        tema = item.get("tema") or DEFAULT_THEME
+        nome_tema = next((nome for nome, chave in self.mapa_temas.items() if chave == tema), next(iter(self.mapa_temas)))
+        self.combo_tema.set(nome_tema)
+        self._atualizar_opcoes_variacao(tema)
+        variacao = item.get("variacao")
+        for nome_variacao, variacao_id in self.mapa_variacoes_atuais.items():
+            if variacao_id == variacao:
+                self.combo_variacao.set(nome_variacao)
+                break
+        self.lbl_status.configure(text="📚 Configuração do histórico carregada.", text_color="#F59E0B")
+        self._executar_preview_direto(force=True)
+
+    def _abrir_historico_selecionado(self):
+        valor = self.combo_historico.get()
+        if not valor or valor == "Nenhum item salvo":
+            return
+        item = self._historico_lookup.get(valor)
+        if not item or not item.get("saida"):
+            return
+        caminho = Path(item["saida"])
+        if not caminho.exists():
+            messagebox.showwarning("Arquivo não encontrado", f"O arquivo gerado não existe mais:\n{caminho}")
+            return
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(caminho)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", str(caminho)], check=True)
+            else:
+                subprocess.run(["xdg-open", str(caminho)], check=True)
+        except Exception as exc:
+            messagebox.showerror("Não foi possível abrir o arquivo", str(exc))
+
     def _salvar_preset(self):
         nome = simpledialog.askstring("Salvar preset", "Nome do preset:")
         if not nome:
@@ -395,6 +564,88 @@ class EbookBuilderGUI(ctk.CTk):
             )
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("Preset inválido", str(exc))
+
+    def _preset_selecionado(self):
+        nome = self.combo_presets.get().strip()
+        if not nome or nome == "Nenhum preset salvo":
+            messagebox.showwarning("Preset não selecionado", "Selecione um preset primeiro.")
+            return None
+        return nome
+
+    def _renomear_preset(self):
+        nome_atual = self._preset_selecionado()
+        if nome_atual is None:
+            return
+        novo_nome = simpledialog.askstring(
+            "Renomear preset",
+            "Novo nome do preset:",
+            initialvalue=nome_atual,
+        )
+        if not novo_nome or novo_nome.strip() == nome_atual:
+            return
+        try:
+            self.preset_store.renomear(nome_atual, novo_nome)
+            self._atualizar_lista_presets()
+            self.combo_presets.set(novo_nome.strip())
+            self.lbl_status.configure(
+                text=f"✅ Preset renomeado para '{novo_nome.strip()}'.",
+                text_color="#10B981",
+            )
+        except (KeyError, OSError, ValueError) as exc:
+            messagebox.showerror("Não foi possível renomear o preset", str(exc))
+
+    def _excluir_preset(self):
+        nome = self._preset_selecionado()
+        if nome is None:
+            return
+        if not messagebox.askyesno(
+            "Excluir preset",
+            f"Excluir o preset '{nome}'?\nEssa ação não pode ser desfeita.",
+        ):
+            return
+        try:
+            self.preset_store.excluir(nome)
+            self._atualizar_lista_presets()
+            self.lbl_status.configure(
+                text=f"✅ Preset '{nome}' excluído.",
+                text_color="#10B981",
+            )
+        except (KeyError, OSError, ValueError) as exc:
+            messagebox.showerror("Não foi possível excluir o preset", str(exc))
+
+    def _exportar_presets(self):
+        destino = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("Arquivos JSON", "*.json")],
+            initialfile="ebookbuilder-presets.json",
+        )
+        if not destino:
+            return
+        try:
+            self.preset_store.exportar(destino)
+            self.lbl_status.configure(
+                text="✅ Presets exportados com sucesso.",
+                text_color="#10B981",
+            )
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Erro ao exportar presets", str(exc))
+
+    def _importar_presets(self):
+        origem = filedialog.askopenfilename(
+            filetypes=[("Arquivos JSON", "*.json")],
+            title="Importar presets",
+        )
+        if not origem:
+            return
+        try:
+            nomes = self.preset_store.importar(origem)
+            self._atualizar_lista_presets()
+            self.lbl_status.configure(
+                text=f"✅ {len(nomes)} preset(s) importado(s) com sucesso.",
+                text_color="#10B981",
+            )
+        except (FileNotFoundError, OSError, ValueError) as exc:
+            messagebox.showerror("Erro ao importar presets", str(exc))
 
     def _carregar_preset(self, nome):
         if not nome or nome == "Nenhum preset salvo":
@@ -523,6 +774,15 @@ class EbookBuilderGUI(ctk.CTk):
                 self.caminho_arquivo_fonte.set(str(fonte))
                 if not self.pasta_destino.get():
                     self.pasta_destino.set(str(fonte.parent))
+                self.history_store.registrar_projeto(
+                    origem=str(fonte),
+                    destino=self.pasta_destino.get().strip() or str(fonte.parent),
+                    titulo=self.titulo_ebook.get().strip(),
+                    subtitulo=self.sub_titulo_ebook.get().strip(),
+                    tema=self._tema_ativo(),
+                    variacao=self._obter_id_variacao_selecionada(),
+                )
+                self._atualizar_lista_projetos()
                 self._executar_preview_direto()
             except (FileNotFoundError, ValueError) as exc:
                 messagebox.showerror("Arquivo inválido", str(exc))
@@ -607,10 +867,23 @@ class EbookBuilderGUI(ctk.CTk):
 
     def _compilacao_sucesso(self, caminho, relatorio):
         self.btn_gerar.configure(state="normal")
-        self.lbl_status.configure(
-            text="✅ E-book gerado com sucesso!",
-            text_color="#10B981",
-        )
+        try:
+            self.history_store.registrar(
+                origem=form.origem,
+                saida=caminho,
+                titulo=form.titulo_ativo,
+                subtitulo=form.subtitulo_ativo,
+                tema=form.tema_ativo,
+                variacao=form.variacao,
+            )
+            self._atualizar_lista_historico()
+        except ValueError as exc:
+            self.lbl_status.configure(text=f"⚠️ Arquivo salvo, mas o histórico falhou: {exc}", text_color="#F59E0B")
+        else:
+            self.lbl_status.configure(
+                text="✅ E-book gerado com sucesso!",
+                text_color="#10B981",
+            )
         detalhes = [
             f"Formato: {relatorio['formato']}",
             f"Páginas geradas: {relatorio['paginas_geradas']}",

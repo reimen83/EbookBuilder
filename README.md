@@ -41,6 +41,24 @@ Depois da instalação, também é possível executar pelo ponto de entrada do p
 ebookbuilder
 ```
 
+## Atualização local do código
+
+Para atualizar uma cópia clonada do projeto, execute na raiz do repositório:
+
+```bash
+python3 atualizar.py
+```
+
+O atualizador usa `git fetch` e `git pull --ff-only origin main`. Por segurança, ele
+interrompe a operação se houver alterações locais não commitadas e nunca sobrescreve
+arquivos de trabalho.
+
+Também é possível executá-lo diretamente, caso o arquivo tenha permissão de execução:
+
+```bash
+./atualizar.py
+```
+
 ## Desenvolvimento e testes
 
 Para instalar as ferramentas de desenvolvimento:
