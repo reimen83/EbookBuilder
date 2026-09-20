@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ebookbuilder"
-version = "1.1.0.dev0"
+version = "1.2.0"
 description = "Aplicação desktop local para criação automatizada de e-books em PDF"
 readme = "README.md"
 requires-python = ">=3.10"
