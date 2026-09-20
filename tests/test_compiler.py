@@ -186,18 +186,11 @@ def test_colunas_pdf_recriam_divisorias_com_table_style(tmp_path: Path):
         comando[:4] == ("LINEABOVE", (1, 1), (1, 1), 0.35)
         for comando in tabela._linecmds
     )
-    assert any(
-        comando[0] == "LINEAFTER"
-        and comando[1] == (0, 0)
-        and comando[2] == (0, 0)
-        for comando in tabela._linecmds
-    )
     assert not any(
         comando[0] == "LINEAFTER"
-        and comando[1] == (0, 0)
-        and comando[2] == (0, 1)
         for comando in tabela._linecmds
     )
+    assert tabela.divider_segments == [(0, 0)]
     assert tabela._cellStyles[0][1].leftPadding == 8
     assert tabela._cellStyles[0][0].rightPadding == 8
     assert tabela._linecmds[0][3] == 0.35
