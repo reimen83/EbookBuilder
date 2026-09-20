@@ -8,7 +8,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.utils import simpleSplit
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import Paragraph
 
 from cover_cache import CoverCache
@@ -71,6 +71,32 @@ class CapaHandler:
         self.origem_capa = ThemeEngine.obter_url_capa(
             tema=self.tema, variacao_id_ou_url=alvo_capa
         )
+
+    @staticmethod
+    def _quebrar_texto(texto, fonte, tamanho, largura):
+        linhas = []
+        for paragrafo in texto.splitlines() or [""]:
+            atual = ""
+            for palavra in paragrafo.split() or [""]:
+                candidato = f"{atual} {palavra}".strip()
+                if atual and stringWidth(candidato, fonte, tamanho) > largura:
+                    linhas.append(atual)
+                    atual = ""
+                while palavra and stringWidth(
+                    f"{atual}{palavra}", fonte, tamanho
+                ) > largura:
+                    corte = len(palavra)
+                    while corte > 1 and stringWidth(
+                        f"{atual}{palavra[:corte]}", fonte, tamanho
+                    ) > largura:
+                        corte -= 1
+                    linhas.append(f"{atual}{palavra[:corte]}")
+                    atual = ""
+                    palavra = palavra[corte:]
+                atual = f"{atual}{palavra}".strip()
+            if atual:
+                linhas.append(atual)
+        return linhas or [""]
 
     def desenhar_capa(self, canvas_obj, doc):
         canvas_obj.saveState()
@@ -140,9 +166,50 @@ class CapaHandler:
             canvas_obj.rect(x_card + 30, y_card + altura_card - 8, largura_card - 60, 4, fill=True, stroke=False)
 
             if self.titulo:
-                canvas_obj.setFillColor(colors.HexColor("#FFFFFF"))
-                canvas_obj.setFont(self.tema_config["font_bold"], 23)
-                canvas_obj.drawCentredString(centro_x, y_card + altura_card - 60, self.titulo.upper())
+                tamanho_titulo = 23
+                linhas_titulo = self._quebrar_texto(
+                    self.titulo.upper(),
+                    self.tema_config["font_bold"],
+                    tamanho_titulo,
+                    largura_card - 60,
+                )
+                limite_linhas = 3
+                if len(linhas_titulo) > limite_linhas:
+                    tamanho_titulo = 19
+                    linhas_titulo = self._quebrar_texto(
+                        self.titulo.upper(),
+                        self.tema_config["font_bold"],
+                        tamanho_titulo,
+                        largura_card - 60,
+                    )
+                linhas_titulo = linhas_titulo[:limite_linhas]
+                if len(linhas_titulo) == limite_linhas and len(
+                    self._quebrar_texto(
+                        self.titulo.upper(),
+                        self.tema_config["font_bold"],
+                        tamanho_titulo,
+                        largura_card - 60,
+                    )
+                ) > limite_linhas:
+                    linhas_titulo[-1] = f"{linhas_titulo[-1].rstrip(' .')}..."
+
+                titulo = Paragraph(
+                    "<br/>".join(escape(linha) for linha in linhas_titulo),
+                    ParagraphStyle(
+                        "CoverTitle",
+                        fontName=self.tema_config["font_bold"],
+                        fontSize=tamanho_titulo,
+                        leading=tamanho_titulo + 4,
+                        textColor=colors.HexColor("#FFFFFF"),
+                        alignment=TA_CENTER,
+                    ),
+                )
+                _, altura_titulo = titulo.wrap(largura_card - 60, 90)
+                titulo.drawOn(
+                    canvas_obj,
+                    x_card + 30,
+                    y_card + altura_card - 72 - altura_titulo,
+                )
 
             canvas_obj.setFillColor(self.tema_config["cor_linha"])
             canvas_obj.rect(centro_x - 45, y_card + altura_card - 85, 90, 2, fill=True, stroke=False)
@@ -150,7 +217,7 @@ class CapaHandler:
             if self.sub_titulo:
                 canvas_obj.setFillColor(self.tema_config["cor_subtitulo_capa"])
                 largura_subtitulo = largura_card - 60
-                linhas = simpleSplit(
+                linhas = self._quebrar_texto(
                     self.sub_titulo,
                     self.tema_config["font_base"],
                     13,

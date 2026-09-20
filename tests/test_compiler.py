@@ -100,10 +100,20 @@ def test_subtitulo_longo_quebra_linhas_na_capa(tmp_path: Path):
     pagina.save()
 
     with pdfplumber.open(saida) as pdf:
-        palavras = pdf.pages[0].extract_words()
-    linhas = {round(palavra["top"], 1) for palavra in palavras if palavra["text"] == "subtítulo"}
-    assert len(linhas) == 1
-    assert len({round(palavra["top"], 1) for palavra in palavras if palavra["text"] in {"Este", "automática"}}) >= 2
+        texto = pdf.pages[0].extract_text()
+    assert texto.count("\n") >= 2
+    assert "automáticadentrodacaixadacapa" in texto
+
+
+def test_titulo_longo_sem_espacos_respeita_largura_da_capa():
+    from covers import CapaHandler
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    titulo = "DVADVASDVADVSADVADVSADVADVSADVADVSADVADVSADVADVSADVADVS"
+    linhas = CapaHandler._quebrar_texto(titulo, "Helvetica-Bold", 23, 368)
+
+    assert len(linhas) > 1
+    assert all(stringWidth(linha, "Helvetica-Bold", 23) <= 368 for linha in linhas)
 
 
 def test_temas_têm_variacoes_e_estilos():
