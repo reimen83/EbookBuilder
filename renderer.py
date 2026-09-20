@@ -6,9 +6,17 @@ from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
 
 
 class _SegmentedColumnsTable(Table):
-    def __init__(self, *args, divider_segments=None, divider_color=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        divider_segments=None,
+        horizontal_segments=None,
+        divider_color=None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.divider_segments = divider_segments or []
+        self.horizontal_segments = horizontal_segments or []
         self.divider_color = divider_color
 
     def split(self, availWidth, availHeight):
@@ -20,6 +28,15 @@ class _SegmentedColumnsTable(Table):
         for fragment in fragments:
             row_count = len(fragment._rowHeights)
             fragment.divider_color = self.divider_color
+            fragment.horizontal_segments = [
+                (start, end, row)
+                for start, end, row in self.horizontal_segments
+                if row >= offset and row < offset + row_count
+            ]
+            fragment.horizontal_segments = [
+                (start, end, row - offset)
+                for start, end, row in fragment.horizontal_segments
+            ]
             fragment.divider_segments = [
                 (max(start - offset, 0), min(end - offset, row_count - 1))
                 for start, end in self.divider_segments
@@ -37,13 +54,25 @@ class _SegmentedColumnsTable(Table):
         canvas.saveState()
         canvas.setStrokeColor(self.divider_color or colors.black)
         canvas.setLineWidth(0.35)
-        gap = 3
-        x = self._colWidths[0]
+        vertical_gap = 3
         for inicio, fim in self.divider_segments:
             y_top = self._height - sum(self._rowHeights[:inicio])
             y_bottom = self._height - sum(self._rowHeights[: fim + 1])
-            if y_top - y_bottom > gap * 2:
-                canvas.line(x, y_bottom + gap, x, y_top - gap)
+            if y_top - y_bottom > vertical_gap * 2:
+                canvas.line(
+                    self._colWidths[0],
+                    y_bottom + vertical_gap,
+                    self._colWidths[0],
+                    y_top - vertical_gap,
+                )
+
+        horizontal_gap = 7
+        for inicio, fim, linha in self.horizontal_segments:
+            y = self._height - sum(self._rowHeights[:linha])
+            x_start = sum(self._colWidths[:inicio]) + horizontal_gap
+            x_end = sum(self._colWidths[: fim + 1]) - horizontal_gap
+            if x_end > x_start:
+                canvas.line(x_start, y, x_end, y)
         canvas.restoreState()
 
 
@@ -134,6 +163,7 @@ class MarkdownRenderer:
         tops = [linha[2] for linha in linhas]
         linhas_com_separador = set()
         divider_segments = []
+        horizontal_segments = []
         if separadores:
             for x0, x1, separador, meio in separadores:
                 indice = min(
@@ -149,15 +179,7 @@ class MarkdownRenderer:
                     inicio, fim = 0, 0
                 else:
                     inicio, fim = 1, 1
-                estilos.append(
-                    (
-                        "LINEABOVE",
-                        (inicio, indice),
-                        (fim, indice),
-                        espessura_divisoria,
-                        cor_divisoria,
-                    )
-                )
+                horizontal_segments.append((inicio, fim, indice))
 
         if divisorias:
             for x0, inicio, fim in divisorias:
@@ -191,6 +213,7 @@ class MarkdownRenderer:
             colWidths=[243.5, 243.5],
             repeatRows=0,
             divider_segments=divider_segments,
+            horizontal_segments=horizontal_segments,
             divider_color=cor_divisoria,
         )
         tabela.setStyle(TableStyle(estilos))
