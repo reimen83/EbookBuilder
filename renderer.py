@@ -131,8 +131,16 @@ class MarkdownRenderer:
         if not linhas:
             return None
 
+        linhas_validas = [
+            linha
+            for linha in linhas
+            if isinstance(linha, (list, tuple)) and len(linha) >= 3
+        ]
+        if not linhas_validas:
+            return None
+
         dados = []
-        for coluna_esquerda, coluna_direita, _ in linhas:
+        for coluna_esquerda, coluna_direita, _ in linhas_validas:
             esquerda = self._converter_inline_formatting(coluna_esquerda)
             direita = self._converter_inline_formatting(coluna_direita)
             dados.append(
@@ -160,7 +168,7 @@ class MarkdownRenderer:
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ]
 
-        tops = [linha[2] for linha in linhas]
+        tops = [linha[2] for linha in linhas_validas]
         linhas_com_separador = set()
         divider_segments = []
         horizontal_segments = []

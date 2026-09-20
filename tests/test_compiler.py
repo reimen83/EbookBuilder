@@ -238,6 +238,16 @@ def test_colunas_pdf_recriam_divisorias_com_table_style(tmp_path: Path):
     assert tabela.horizontal_segments
 
 
+def test_colunas_pdf_ignora_registros_vazios():
+    compiler = EbookCompiler("conteudo.md", "saida.pdf")
+    tabela = compiler.renderer._gerar_colunas_pdf_flowable(
+        [(), ("Esquerda", "Direita", 100), ("incompleta",)],
+    )
+
+    assert tabela is not None
+    assert len(tabela._cellvalues) == 1
+
+
 def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
     compiler = EbookCompiler("conteudo.md", "saida.pdf")
     tabela = compiler.renderer._gerar_colunas_pdf_flowable(
