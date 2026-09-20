@@ -1,3 +1,4 @@
+import sys
 import threading
 import tkinter as tk
 from queue import Empty, Queue
@@ -134,6 +135,32 @@ class EbookBuilderGUI(ctk.CTk):
         target = getattr(entry_widget, "_entry", entry_widget)
         target.bind("<Button-3>", self._exibir_menu_contexto)
 
+    def _widget_esta_no_frame(self, widget, frame):
+        atual = widget
+        while atual is not None:
+            if atual == frame:
+                return True
+            atual = getattr(atual, "master", None)
+        return False
+
+    def _rolar_configuracoes(self, event):
+        frame = getattr(self, "frame_configuracoes", None)
+        if frame is None or not self._widget_esta_no_frame(event.widget, frame):
+            return
+
+        canvas = frame._parent_canvas
+        if event.num == 4:
+            unidades = -1
+        elif event.num == 5:
+            unidades = 1
+        elif sys.platform == "darwin":
+            unidades = -event.delta
+        else:
+            unidades = -1 if event.delta > 0 else 1
+
+        canvas.yview_scroll(unidades, "units")
+        return "break"
+
     def _construir_interface(self):
         # Ajuste proporcional das colunas: Esquerda (40%) e Direita/Preview (60%)
         self.grid_columnconfigure(0, weight=4)
@@ -142,6 +169,10 @@ class EbookBuilderGUI(ctk.CTk):
 
         # ==================== PAINEL ESQUERDO ====================
         frame_esquerda = ctk.CTkScrollableFrame(self, label_text="Configurações do E-book")
+        self.frame_configuracoes = frame_esquerda
+        self.bind_all("<MouseWheel>", self._rolar_configuracoes, add="+")
+        self.bind_all("<Button-4>", self._rolar_configuracoes, add="+")
+        self.bind_all("<Button-5>", self._rolar_configuracoes, add="+")
         frame_esquerda.grid(row=0, column=0, sticky="nsew", padx=(15, 7), pady=15)
 
         lbl_titulo = ctk.CTkLabel(frame_esquerda, text="EbookBuilder", font=ctk.CTkFont(size=24, weight="bold"), text_color="#F59E0B")
