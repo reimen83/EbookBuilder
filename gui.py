@@ -481,7 +481,7 @@ class EbookBuilderGUI(ctk.CTk):
             return
 
         self.btn_gerar.configure(state="disabled")
-        self.lbl_status.configure(text="⏳ Gerando e-book em PDF...", text_color="#F59E0B")
+        self.lbl_status.configure(text="🔎 Analisando documento...", text_color="#F59E0B")
 
         threading.Thread(
             target=self._executar_compilacao_bg,
@@ -494,7 +494,7 @@ class EbookBuilderGUI(ctk.CTk):
 
     def _executar_compilacao_bg(self, form, saída):
         try:
-            EbookCompiler(
+            compiler = EbookCompiler(
                 arquivo_fonte=form.origem,
                 arquivo_saida=saída,
                 capa_url=form.capa_ativa,
@@ -502,16 +502,55 @@ class EbookBuilderGUI(ctk.CTk):
                 sub_titulo_ebook=form.subtitulo_ativo,
                 tema=form.tema_ativo,
                 variacao_capa=form.variacao,
-            ).compilar()
-            self.after(0, self._compilacao_sucesso, saída)
+            )
+            analise = compiler.analisar_documento()
+            avisos = []
+            if analise.get("paginas_com_imagens"):
+                avisos.append(
+                    f"{analise['paginas_com_imagens']} página(s) com imagens serão preservadas"
+                )
+            if analise.get("colunas_detectadas"):
+                avisos.append(
+                    f"{analise['colunas_detectadas']} página(s) com duas colunas detectadas"
+                )
+            self.after(
+                0,
+                self._atualizar_diagnostico,
+                " • ".join(avisos) or "Estrutura simples detectada",
+            )
+            relatorio = compiler.compilar(analise)
+            self.after(0, self._compilacao_sucesso, saída, relatorio)
         except Exception as e:
             traceback.print_exc()
             self.after(0, self._compilacao_erro, str(e))
 
-    def _compilacao_sucesso(self, caminho):
+    def _atualizar_diagnostico(self, mensagem):
+        self.lbl_status.configure(
+            text=f"⏳ {mensagem}. Gerando PDF...",
+            text_color="#F59E0B",
+        )
+
+    def _compilacao_sucesso(self, caminho, relatorio):
         self.btn_gerar.configure(state="normal")
-        self.lbl_status.configure(text="✅ E-book gerado com sucesso!", text_color="#10B981")
-        messagebox.showinfo("Sucesso", f"Salvo em:\n{caminho}")
+        self.lbl_status.configure(
+            text="✅ E-book gerado com sucesso!",
+            text_color="#10B981",
+        )
+        detalhes = [
+            f"Formato: {relatorio['formato']}",
+            f"Páginas geradas: {relatorio['paginas_geradas']}",
+            f"Tamanho: {relatorio['tamanho_saida_bytes'] / 1024:.1f} KB",
+        ]
+        if relatorio.get("paginas_com_imagens") is not None:
+            detalhes.append(
+                f"Páginas com imagens: {relatorio['paginas_com_imagens']}"
+            )
+        if relatorio.get("colunas_detectadas"):
+            detalhes.append(f"Colunas detectadas: {relatorio['colunas_detectadas']}")
+        messagebox.showinfo(
+            "E-book gerado com sucesso",
+            f"Salvo em:\n{caminho}\n\n" + "\n".join(detalhes),
+        )
 
     def _compilacao_erro(self, msg):
         self.btn_gerar.configure(state="normal")
