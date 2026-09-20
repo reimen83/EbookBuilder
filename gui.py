@@ -1,15 +1,16 @@
 import sys
 import threading
 import tkinter as tk
+from tkinter import filedialog, messagebox, simpledialog
 import traceback
 from queue import Empty, Queue
 from dataclasses import dataclass
-from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from compiler import EbookCompiler, ThemeEngine
+from presets import PresetStore
 from preview_state import build_preview_signature
 from validation import (
     build_output_path,
@@ -77,6 +78,7 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_signature = None
         self._preview_thread = None
         self._preview_results = Queue()
+        self.preset_store = PresetStore()
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -279,6 +281,21 @@ class EbookBuilderGUI(ctk.CTk):
 
         self._atualizar_opcoes_variacao(self.mapa_temas[self.combo_tema.get()])
 
+        frame_presets = ctk.CTkFrame(frame_esquerda, fg_color="transparent")
+        frame_presets.pack(fill="x", padx=5, pady=(2, 4))
+        self.combo_presets = ctk.CTkOptionMenu(
+            frame_presets,
+            values=self.preset_store.listar() or ["Nenhum preset salvo"],
+            command=self._carregar_preset,
+        )
+        self.combo_presets.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(
+            frame_presets,
+            text="Salvar preset",
+            width=110,
+            command=self._salvar_preset,
+        ).pack(side="right")
+
         # BOTÃO PREVIEW
         self.btn_preview = ctk.CTkButton(frame_esquerda, text="🔄 Atualizar Pré-visualização", font=ctk.CTkFont(size=13, weight="bold"), fg_color="#3B82F6", hover_color="#2563EB", command=lambda: self._executar_preview_direto(force=True))
         self.btn_preview.pack(fill="x", padx=5, pady=(8, 4))
@@ -347,6 +364,64 @@ class EbookBuilderGUI(ctk.CTk):
     def _obter_id_variacao_selecionada(self):
         nome_selecionado = self.combo_variacao.get()
         return self.mapa_variacoes_atuais.get(nome_selecionado, None)
+
+    def _configuracao_preset(self):
+        config = self._build_form_config()
+        return {
+            "origem": config.origem,
+            "destino": config.destino,
+            "titulo": config.titulo,
+            "subtitulo": config.subtitulo,
+            "capa": config.capa,
+            "tema": config.tema,
+            "variacao": config.variacao,
+        }
+
+    def _atualizar_lista_presets(self):
+        nomes = self.preset_store.listar() or ["Nenhum preset salvo"]
+        self.combo_presets.configure(values=nomes)
+        self.combo_presets.set(nomes[0])
+
+    def _salvar_preset(self):
+        nome = simpledialog.askstring("Salvar preset", "Nome do preset:")
+        if not nome:
+            return
+        try:
+            self.preset_store.salvar(nome, self._configuracao_preset())
+            self._atualizar_lista_presets()
+            self.lbl_status.configure(
+                text=f"✅ Preset '{nome.strip()}' salvo.",
+                text_color="#10B981",
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("Preset inválido", str(exc))
+
+    def _carregar_preset(self, nome):
+        if not nome or nome == "Nenhum preset salvo":
+            return
+        try:
+            config = self.preset_store.carregar(nome)
+            self.caminho_arquivo_fonte.set(config.get("origem", ""))
+            self.pasta_destino.set(config.get("destino", ""))
+            self.titulo_ebook.set(config.get("titulo", ""))
+            self.sub_titulo_ebook.set(config.get("subtitulo", ""))
+            capa = config.get("capa", "")
+            self.url_capa.set(capa if str(capa).startswith(("http://", "https://")) else "")
+            self.caminho_capa_local.set(capa if capa and not self.url_capa.get() else "")
+            tema = config.get("tema", DEFAULT_THEME)
+            nome_tema = next(
+                (nome for nome, chave in self.mapa_temas.items() if chave == tema),
+                next(iter(self.mapa_temas)),
+            )
+            self.combo_tema.set(nome_tema)
+            self._atualizar_opcoes_variacao(tema)
+            for nome_variacao, variacao_id in self.mapa_variacoes_atuais.items():
+                if variacao_id == config.get("variacao"):
+                    self.combo_variacao.set(nome_variacao)
+                    break
+            self._executar_preview_direto(force=True)
+        except (KeyError, OSError, ValueError) as exc:
+            messagebox.showerror("Erro ao carregar preset", str(exc))
 
     def _executar_preview_direto(self, force=False):
         config = self._build_form_config()
