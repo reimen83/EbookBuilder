@@ -1,5 +1,6 @@
 import re
 
+from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
 
@@ -71,10 +72,20 @@ class MarkdownRenderer:
             )
 
         tabela = Table(dados, colWidths=[243.5, 243.5], repeatRows=0)
+        cor_divisoria = self.theme_cfg["cor_linha"]
+        cor_divisoria = colors.Color(
+            cor_divisoria.red,
+            cor_divisoria.green,
+            cor_divisoria.blue,
+            alpha=0.65,
+        )
+        espaco_divisoria = 8
+        espessura_divisoria = 0.35
         estilos = [
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (0, -1), espaco_divisoria),
+            ("LEFTPADDING", (1, 0), (1, -1), espaco_divisoria),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ]
@@ -101,8 +112,8 @@ class MarkdownRenderer:
                         "LINEABOVE",
                         (inicio, indice),
                         (fim, indice),
-                        0.5,
-                        self.theme_cfg["cor_linha"],
+                        espessura_divisoria,
+                        cor_divisoria,
                     )
                 )
 
@@ -136,8 +147,8 @@ class MarkdownRenderer:
                             "LINEAFTER",
                             (0, trecho_inicio),
                             (0, trecho_fim),
-                            0.5,
-                            self.theme_cfg["cor_linha"],
+                            espessura_divisoria,
+                            cor_divisoria,
                         )
                     )
 
