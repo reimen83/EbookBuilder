@@ -92,12 +92,42 @@ class PdfParser(BaseDocumentParser):
             return None
 
         meio = pagina.width / 2
-        esquerda = [word for word in words if word["x0"] < meio]
-        direita = [word for word in words if word["x0"] >= meio]
-        if len(esquerda) < 8 or len(direita) < 8:
+        linhas = self._agrupar_linhas(words)
+        linhas_esquerda = 0
+        linhas_direita = 0
+        linhas_em_duas_colunas = 0
+        linhas_cruzando_centro = 0
+        for linha in linhas:
+            palavras_esquerda = [word for word in linha if word["x1"] <= meio]
+            palavras_direita = [word for word in linha if word["x0"] >= meio]
+            if (
+                palavras_esquerda
+                and palavras_direita
+                and max(word["x1"] for word in palavras_esquerda) <= meio - 8
+                and min(word["x0"] for word in palavras_direita) >= meio + 8
+            ):
+                linhas_esquerda += 1
+                linhas_direita += 1
+                linhas_em_duas_colunas += 1
+            elif (
+                min(word["x0"] for word in linha) < meio - 12
+                and max(word["x1"] for word in linha) > meio + 12
+            ):
+                linhas_cruzando_centro += 1
+            elif max(word["x1"] for word in linha) <= meio - 8:
+                linhas_esquerda += 1
+            elif min(word["x0"] for word in linha) >= meio + 8:
+                linhas_direita += 1
+
+        total_linhas = len(linhas)
+        if (
+            linhas_esquerda < 5
+            or linhas_direita < 5
+            or linhas_em_duas_colunas < max(5, total_linhas * 0.6)
+            or linhas_cruzando_centro > max(1, total_linhas * 0.2)
+        ):
             return None
 
-        linhas = self._agrupar_linhas(words)
         resultado = []
         for linha in linhas:
             texto_esquerda = " ".join(
@@ -129,6 +159,11 @@ class PdfParser(BaseDocumentParser):
         ]
         return resultado, separadores, divisorias
 
+    @staticmethod
+    def _preservar_pagina_como_imagem(pagina):
+        imagem = pagina.to_image(resolution=150).original
+        return [PdfPageImage(imagem, pagina.width, pagina.height), PageBreak()]
+
     def parse(self, caminho_pdf):
         if pdfplumber is None:
             raise ImportError("A biblioteca 'pdfplumber' não está instalada.")
@@ -136,16 +171,6 @@ class PdfParser(BaseDocumentParser):
         conteudo = []
         with pdfplumber.open(caminho_pdf) as pdf:
             for pagina in pdf.pages:
-                if pagina.images:
-                    imagem = pagina.to_image(resolution=150).original
-                    conteudo.extend(
-                        [
-                            PdfPageImage(imagem, pagina.width, pagina.height),
-                            PageBreak(),
-                        ]
-                    )
-                    continue
-
                 colunas_extraidas = self._extrair_linhas_de_duas_colunas(pagina)
                 if colunas_extraidas is not None:
                     linhas_colunas, separadores, divisorias = colunas_extraidas
@@ -158,24 +183,9 @@ class PdfParser(BaseDocumentParser):
                         conteudo.extend([tabela_colunas, PageBreak()])
                     continue
 
-                tabelas = pagina.extract_tables()
-                if tabelas:
-                    for tabela in tabelas:
-                        for linha in tabela:
-                            if linha and len(linha) >= 2 and (linha[0] or linha[1]):
-                                col_a = (linha[0] or "").replace("\n", " ").strip()
-                                col_b = (linha[1] or "").replace("\n", " ").strip()
-                                if col_a or col_b:
-                                    conteudo.extend(
-                                        self.renderer._parse_markdown(f"{col_a} | {col_b}")
-                                    )
-                else:
-                    texto_pagina = pagina.extract_text()
-                    if texto_pagina:
-                        texto_formatado = self.smart_parser.inferir_estrutura(texto_pagina)
-                        conteudo.extend(self.renderer._parse_markdown(texto_formatado))
-                    else:
-                        conteudo.append(PageBreak())
+                # Um PDF já diagramado não deve ser linearizado: a renderização
+                # da página preserva tipografia, espaçamentos, tabelas e imagens.
+                conteudo.extend(self._preservar_pagina_como_imagem(pagina))
 
         if conteudo and isinstance(conteudo[-1], PageBreak):
             conteudo.pop()

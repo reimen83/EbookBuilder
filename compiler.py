@@ -121,11 +121,7 @@ class EbookCompiler:
                     if pagina.images:
                         paginas_imagens += 1
                     palavras = pagina.extract_words() or []
-                    meio = pagina.width / 2
-                    if (
-                        sum(p["x0"] < meio for p in palavras) >= 8
-                        and sum(p["x0"] >= meio for p in palavras) >= 8
-                    ):
+                    if self.document_reader.parsers[".pdf"]._extrair_linhas_de_duas_colunas(pagina):
                         colunas += 1
             relatorio["paginas_com_texto"] = paginas_texto
             relatorio["paginas_com_imagens"] = paginas_imagens
