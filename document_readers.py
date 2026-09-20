@@ -323,6 +323,7 @@ class PdfParser(BaseDocumentParser):
         background_color=None,
         text_color=None,
         protected_regions=None,
+        preservar_cores_originais=False,
     ):
         imagem = pagina.to_image(resolution=PDF_RENDER_DPI).original
         protected_regions = self._regioes_protegidas(pagina, imagem.size)
@@ -331,8 +332,10 @@ class PdfParser(BaseDocumentParser):
                 imagem,
                 pagina.width,
                 pagina.height,
-                background_color=background_color,
-                text_color=text_color,
+                background_color=(
+                    None if preservar_cores_originais else background_color
+                ),
+                text_color=None if preservar_cores_originais else text_color,
                 protected_regions=protected_regions,
             ),
             PageBreak(),
@@ -373,6 +376,10 @@ class PdfParser(BaseDocumentParser):
                         pagina,
                         background_color=background_color,
                         text_color=text_color,
+                        # Uma página com imagem pode ser uma capa, uma página
+                        # escaneada ou uma composição híbrida. Alterar pixels
+                        # nesses casos destrói cores e detalhes do original.
+                        preservar_cores_originais=bool(pagina.images),
                     )
                 )
 
