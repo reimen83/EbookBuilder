@@ -26,10 +26,17 @@ class BaseDocumentParser:
 
 
 class PdfPageImage(Flowable):
-    def __init__(self, image, page_width, page_height, background_color=None):
+    def __init__(
+        self,
+        image,
+        page_width,
+        page_height,
+        background_color=None,
+        text_color=None,
+    ):
         super().__init__()
         self.image = ImageReader(
-            self.recolorir_fundo(image, background_color)
+            self.recolorir_fundo(image, background_color, text_color=text_color)
             if background_color is not None
             else image
         )
@@ -37,7 +44,13 @@ class PdfPageImage(Flowable):
         self.page_height = page_height
 
     @staticmethod
-    def recolorir_fundo(image, background_color, tolerancia=18):
+    def recolorir_fundo(
+        image,
+        background_color,
+        text_color=None,
+        tolerancia=18,
+        limiar_texto_claro=185,
+    ):
         """Troca apenas o fundo uniforme identificado pelas bordas da página."""
         if background_color is None:
             return image
@@ -52,6 +65,11 @@ class PdfPageImage(Flowable):
         ]
         fundo_origem = max(set(pontos_borda), key=pontos_borda.count)
         alvo = tuple(int(c * 255) if 0 <= c <= 1 else int(c) for c in background_color)
+        alvo_texto = (
+            tuple(int(c * 255) if 0 <= c <= 1 else int(c) for c in text_color)
+            if text_color is not None
+            else None
+        )
         rgb = imagem.convert("RGB")
         origem = Image.new("RGB", rgb.size, fundo_origem[:3])
         diferenca = ImageChops.difference(rgb, origem)
@@ -64,6 +82,30 @@ class PdfPageImage(Flowable):
             mascara = ImageChops.multiply(mascara, canal_mascara)
         fundo_novo = Image.new("RGB", rgb.size, alvo)
         resultado = Image.composite(fundo_novo, rgb, mascara).convert("RGBA")
+
+        fundo_luminancia = (
+            0.2126 * alvo[0] + 0.7152 * alvo[1] + 0.0722 * alvo[2]
+        )
+        if alvo_texto is not None and fundo_luminancia >= 150:
+            pixels_origem = rgb.load()
+            pixels_resultado = resultado.load()
+            for y in range(altura):
+                for x in range(largura):
+                    if mascara.getpixel((x, y)) == 255:
+                        continue
+                    pixel = pixels_origem[x, y]
+                    luminancia = (
+                        0.2126 * pixel[0]
+                        + 0.7152 * pixel[1]
+                        + 0.0722 * pixel[2]
+                    )
+                    distancia_fundo = sum(
+                        abs(pixel[indice] - fundo_origem[indice])
+                        for indice in range(3)
+                    )
+                    if luminancia >= limiar_texto_claro and distancia_fundo >= tolerancia * 2:
+                        pixels_resultado[x, y] = (*alvo_texto, pixels_resultado[x, y][3])
+
         resultado.putalpha(imagem.getchannel("A"))
         return resultado
 
@@ -197,7 +239,11 @@ class PdfParser(BaseDocumentParser):
         return resultado, separadores, divisorias
 
     @staticmethod
-    def _preservar_pagina_como_imagem(pagina, background_color=None):
+    def _preservar_pagina_como_imagem(
+        pagina,
+        background_color=None,
+        text_color=None,
+    ):
         imagem = pagina.to_image(resolution=150).original
         return [
             PdfPageImage(
@@ -205,6 +251,7 @@ class PdfParser(BaseDocumentParser):
                 pagina.width,
                 pagina.height,
                 background_color=background_color,
+                text_color=text_color,
             ),
             PageBreak(),
         ]
@@ -215,10 +262,14 @@ class PdfParser(BaseDocumentParser):
 
         conteudo = []
         background_color = None
+        text_color = None
         if self.renderer is not None:
             cor_fundo = self.renderer.theme_cfg.get("cor_fundo")
+            cor_texto = self.renderer.theme_cfg.get("cor_texto")
             if cor_fundo is not None:
                 background_color = (cor_fundo.red, cor_fundo.green, cor_fundo.blue)
+            if cor_texto is not None:
+                text_color = (cor_texto.red, cor_texto.green, cor_texto.blue)
         with pdfplumber.open(caminho_pdf) as pdf:
             for pagina in pdf.pages:
                 colunas_extraidas = self._extrair_linhas_de_duas_colunas(pagina)
@@ -239,6 +290,7 @@ class PdfParser(BaseDocumentParser):
                     self._preservar_pagina_como_imagem(
                         pagina,
                         background_color=background_color,
+                        text_color=text_color,
                     )
                 )
 
