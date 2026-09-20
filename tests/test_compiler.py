@@ -80,6 +80,32 @@ def test_capa_sem_imagem_explicita_usa_primeira_variacao_do_tema():
     assert capa.origem_capa == capa_padrao
 
 
+def test_subtitulo_longo_quebra_linhas_na_capa(tmp_path: Path):
+    from covers import CapaHandler
+    import pdfplumber
+
+    capa = tmp_path / "capa.png"
+    Image.new("RGB", (100, 150), color="navy").save(capa)
+    saida = tmp_path / "capa-subtitulo-longo.pdf"
+    pagina = canvas.Canvas(str(saida), pagesize=A4)
+    CapaHandler(
+        origem_capa=capa,
+        titulo="Título",
+        sub_titulo=(
+            "Este é um subtítulo propositalmente muito longo para verificar "
+            "a quebra automática dentro da caixa da capa"
+        ),
+        tema="modern",
+    ).desenhar_capa(pagina, None)
+    pagina.save()
+
+    with pdfplumber.open(saida) as pdf:
+        palavras = pdf.pages[0].extract_words()
+    linhas = {round(palavra["top"], 1) for palavra in palavras if palavra["text"] == "subtítulo"}
+    assert len(linhas) == 1
+    assert len({round(palavra["top"], 1) for palavra in palavras if palavra["text"] in {"Este", "automática"}}) >= 2
+
+
 def test_temas_têm_variacoes_e_estilos():
     opcoes = ThemeEngine.obter_opcoes_capa_por_tema("modern")
     estilos = ThemeEngine.obter_estilos("modern")
