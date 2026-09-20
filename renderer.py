@@ -5,6 +5,31 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
 
 
+class _SegmentedColumnsTable(Table):
+    def __init__(self, *args, divider_segments=None, divider_color=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.divider_segments = divider_segments or []
+        self.divider_color = divider_color
+
+    def draw(self):
+        super().draw()
+        if not self.divider_segments:
+            return
+
+        canvas = self.canv
+        canvas.saveState()
+        canvas.setStrokeColor(self.divider_color)
+        canvas.setLineWidth(0.35)
+        gap = 3
+        x = self._colWidths[0]
+        for inicio, fim in self.divider_segments:
+            y_top = self._height - sum(self._rowHeights[:inicio])
+            y_bottom = self._height - sum(self._rowHeights[: fim + 1])
+            if y_top - y_bottom > gap * 2:
+                canvas.line(x, y_bottom + gap, x, y_top - gap)
+        canvas.restoreState()
+
+
 class MarkdownRenderer:
     """Converte Markdown estruturado em flowables do ReportLab."""
 
@@ -71,7 +96,6 @@ class MarkdownRenderer:
                 ]
             )
 
-        tabela = Table(dados, colWidths=[243.5, 243.5], repeatRows=0)
         cor_divisoria = self.theme_cfg["cor_linha"]
         cor_divisoria = colors.Color(
             cor_divisoria.red,
@@ -92,6 +116,7 @@ class MarkdownRenderer:
 
         tops = [linha[2] for linha in linhas]
         linhas_com_separador = set()
+        divider_segments = []
         if separadores:
             for x0, x1, separador, meio in separadores:
                 indice = min(
@@ -142,16 +167,15 @@ class MarkdownRenderer:
                     trechos.append((trecho_inicio, ultimo))
 
                 for trecho_inicio, trecho_fim in trechos:
-                    estilos.append(
-                        (
-                            "LINEAFTER",
-                            (0, trecho_inicio),
-                            (0, trecho_fim),
-                            espessura_divisoria,
-                            cor_divisoria,
-                        )
-                    )
+                    divider_segments.append((trecho_inicio, trecho_fim))
 
+        tabela = _SegmentedColumnsTable(
+            dados,
+            colWidths=[243.5, 243.5],
+            repeatRows=0,
+            divider_segments=divider_segments,
+            divider_color=cor_divisoria,
+        )
         tabela.setStyle(TableStyle(estilos))
         return tabela
 
