@@ -17,6 +17,9 @@ except ImportError:
     pdfplumber = None
 
 
+PDF_RENDER_DPI = 300
+
+
 class BaseDocumentParser:
     def __init__(self, renderer, smart_parser):
         self.renderer = renderer
@@ -292,7 +295,7 @@ class PdfParser(BaseDocumentParser):
         text_color=None,
         protected_regions=None,
     ):
-        imagem = pagina.to_image(resolution=150).original
+        imagem = pagina.to_image(resolution=PDF_RENDER_DPI).original
         protected_regions = self._regioes_protegidas(pagina, imagem.size)
         return [
             PdfPageImage(
