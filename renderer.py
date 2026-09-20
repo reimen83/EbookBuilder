@@ -50,7 +50,12 @@ class MarkdownRenderer:
         )
         return tabela
 
-    def _gerar_colunas_pdf_flowable(self, linhas, separadores=None):
+    def _gerar_colunas_pdf_flowable(
+        self,
+        linhas,
+        separadores=None,
+        divisorias=None,
+    ):
         if not linhas:
             return None
 
@@ -72,27 +77,42 @@ class MarkdownRenderer:
             ("RIGHTPADDING", (0, 0), (-1, -1), 10),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            (
-                "LINEAFTER",
-                (0, 0),
-                (0, -1),
-                0.75,
-                self.theme_cfg["cor_linha"],
-            ),
         ]
 
         if separadores:
             tops = [linha[2] for linha in linhas]
-            for separador in sorted(set(separadores)):
+            for x0, x1, separador in separadores:
                 indice = min(
                     range(len(tops)),
                     key=lambda item: abs(tops[item] - separador),
                 )
+                coluna = 0 if x1 <= 300 else 1
                 estilos.append(
                     (
                         "LINEABOVE",
-                        (0, indice),
-                        (-1, indice),
+                        (coluna, indice),
+                        (coluna, indice),
+                        0.5,
+                        self.theme_cfg["cor_linha"],
+                    )
+                )
+
+        if divisorias:
+            tops = [linha[2] for linha in linhas]
+            for x0, inicio, fim in divisorias:
+                inicio_linha = min(
+                    range(len(tops)),
+                    key=lambda item: abs(tops[item] - inicio),
+                )
+                fim_linha = min(
+                    range(len(tops)),
+                    key=lambda item: abs(tops[item] - fim),
+                )
+                estilos.append(
+                    (
+                        "LINEAFTER",
+                        (0, inicio_linha),
+                        (0, max(inicio_linha, fim_linha - 1)),
                         0.5,
                         self.theme_cfg["cor_linha"],
                     )

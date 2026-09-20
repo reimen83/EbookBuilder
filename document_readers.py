@@ -90,13 +90,18 @@ class PdfParser(BaseDocumentParser):
                 )
 
         separadores = [
-            line["top"]
+            (line["x0"], line["x1"], line["top"])
             for line in pagina.lines
             if line["height"] == 0
-            and line["x0"] <= meio
-            and line["x1"] >= meio
+            and line["x1"] - line["x0"] > 80
         ]
-        return resultado, separadores
+        divisorias = [
+            (line["x0"], line["top"], line["bottom"])
+            for line in pagina.lines
+            if line["width"] == 0
+            and meio - 4 <= line["x0"] <= meio + 4
+        ]
+        return resultado, separadores, divisorias
 
     def parse(self, caminho_pdf):
         if pdfplumber is None:
@@ -107,10 +112,11 @@ class PdfParser(BaseDocumentParser):
             for pagina in pdf.pages:
                 colunas_extraidas = self._extrair_linhas_de_duas_colunas(pagina)
                 if colunas_extraidas is not None:
-                    linhas_colunas, separadores = colunas_extraidas
+                    linhas_colunas, separadores, divisorias = colunas_extraidas
                     tabela_colunas = self.renderer._gerar_colunas_pdf_flowable(
                         linhas_colunas,
                         separadores=separadores,
+                        divisorias=divisorias,
                     )
                     if tabela_colunas:
                         conteudo.extend([tabela_colunas, PageBreak()])
