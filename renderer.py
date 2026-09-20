@@ -77,36 +77,69 @@ class MarkdownRenderer:
             ("RIGHTPADDING", (0, 0), (-1, -1), 10),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            (
-                "LINEAFTER",
-                (0, 0),
-                (0, -1),
-                0.5,
-                self.theme_cfg["cor_linha"],
-            ),
         ]
 
+        tops = [linha[2] for linha in linhas]
+        linhas_com_separador = set()
         if separadores:
-            tops = [linha[2] for linha in linhas]
-            separadores_aplicados = set()
             for x0, x1, separador, meio in separadores:
                 indice = min(
                     range(len(tops)),
                     key=lambda item: abs(tops[item] - separador),
                 )
-                chave = indice
-                if chave in separadores_aplicados:
-                    continue
-                separadores_aplicados.add(chave)
+                linhas_com_separador.add(indice)
+                centro_segmento = (x0 + x1) / 2
+                atravessa_vao = x0 < meio - 4 and x1 > meio + 4
+                if atravessa_vao:
+                    inicio, fim = 0, 1
+                elif centro_segmento < meio:
+                    inicio, fim = 0, 0
+                else:
+                    inicio, fim = 1, 1
                 estilos.append(
                     (
                         "LINEABOVE",
-                        (0, indice),
-                        (-1, indice),
+                        (inicio, indice),
+                        (fim, indice),
                         0.5,
                         self.theme_cfg["cor_linha"],
                     )
                 )
+
+        if divisorias:
+            for x0, inicio, fim in divisorias:
+                inicio_linha = min(
+                    range(len(tops)),
+                    key=lambda item: abs(tops[item] - inicio),
+                )
+                fim_linha = min(
+                    range(len(tops)),
+                    key=lambda item: abs(tops[item] - fim),
+                )
+                primeiro = min(inicio_linha, fim_linha)
+                ultimo = max(inicio_linha, fim_linha) - 1
+                trechos = []
+                trecho_inicio = None
+                for indice in range(primeiro, ultimo + 1):
+                    if indice in linhas_com_separador:
+                        if trecho_inicio is not None:
+                            trechos.append((trecho_inicio, indice - 1))
+                            trecho_inicio = None
+                    elif trecho_inicio is None:
+                        trecho_inicio = indice
+                if trecho_inicio is not None:
+                    trechos.append((trecho_inicio, ultimo))
+
+                for trecho_inicio, trecho_fim in trechos:
+                    estilos.append(
+                        (
+                            "LINEAFTER",
+                            (0, trecho_inicio),
+                            (0, trecho_fim),
+                            0.5,
+                            self.theme_cfg["cor_linha"],
+                        )
+                    )
 
         tabela.setStyle(TableStyle(estilos))
         return tabela
