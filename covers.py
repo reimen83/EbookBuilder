@@ -1,10 +1,15 @@
 import io
 import os
+from xml.sax.saxutils import escape
 
 import requests
 from PIL import Image, ImageEnhance, ImageFilter
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.utils import simpleSplit
+from reportlab.platypus import Paragraph
 
 from cover_cache import CoverCache
 from themes import ThemeEngine
@@ -143,9 +148,36 @@ class CapaHandler:
             canvas_obj.rect(centro_x - 45, y_card + altura_card - 85, 90, 2, fill=True, stroke=False)
 
             if self.sub_titulo:
-                canvas_obj.setFont(self.tema_config["font_base"], 13)
                 canvas_obj.setFillColor(self.tema_config["cor_subtitulo_capa"])
-                canvas_obj.drawCentredString(centro_x, y_card + 40, self.sub_titulo)
+                largura_subtitulo = largura_card - 60
+                linhas = simpleSplit(
+                    self.sub_titulo,
+                    self.tema_config["font_base"],
+                    13,
+                    largura_subtitulo,
+                )
+                limite_linhas = 6
+                if len(linhas) > limite_linhas:
+                    linhas = linhas[:limite_linhas]
+                    linhas[-1] = f"{linhas[-1].rstrip(' .')}..."
+
+                subtitulo = Paragraph(
+                    "<br/>".join(escape(linha) for linha in linhas),
+                    ParagraphStyle(
+                        "CoverSubtitle",
+                        fontName=self.tema_config["font_base"],
+                        fontSize=13,
+                        leading=16,
+                        textColor=self.tema_config["cor_subtitulo_capa"],
+                        alignment=TA_CENTER,
+                    ),
+                )
+                _, altura_subtitulo = subtitulo.wrap(largura_subtitulo, 100)
+                subtitulo.drawOn(
+                    canvas_obj,
+                    x_card + 30,
+                    y_card + 25 + max(0, (80 - altura_subtitulo) / 2),
+                )
 
         canvas_obj.restoreState()
 
