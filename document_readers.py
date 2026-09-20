@@ -90,7 +90,7 @@ class PdfParser(BaseDocumentParser):
                 )
 
         separadores = [
-            (line["x0"], line["x1"], line["top"])
+            (line["x0"], line["x1"], line["top"], meio)
             for line in pagina.lines
             if line["height"] == 0
             and line["x1"] - line["x0"] > 80

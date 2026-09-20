@@ -81,21 +81,34 @@ class MarkdownRenderer:
 
         if separadores:
             tops = [linha[2] for linha in linhas]
-            for x0, x1, separador in separadores:
+            separadores_aplicados = set()
+            for x0, x1, separador, meio in separadores:
                 indice = min(
                     range(len(tops)),
                     key=lambda item: abs(tops[item] - separador),
                 )
-                coluna = 0 if x1 <= 300 else 1
-                estilos.append(
-                    (
-                        "LINEABOVE",
-                        (coluna, indice),
-                        (coluna, indice),
-                        0.5,
-                        self.theme_cfg["cor_linha"],
+                centro_segmento = (x0 + x1) / 2
+                if x1 >= meio and x0 <= meio and x1 - x0 > meio * 0.8:
+                    colunas = (0, 1)
+                elif centro_segmento < meio:
+                    colunas = (0,)
+                else:
+                    colunas = (1,)
+
+                for coluna in colunas:
+                    chave = (coluna, indice)
+                    if chave in separadores_aplicados:
+                        continue
+                    separadores_aplicados.add(chave)
+                    estilos.append(
+                        (
+                            "LINEABOVE",
+                            (coluna, indice),
+                            (coluna, indice),
+                            0.5,
+                            self.theme_cfg["cor_linha"],
+                        )
                     )
-                )
 
         if divisorias:
             tops = [linha[2] for linha in linhas]
