@@ -2,6 +2,7 @@ import os
 import tempfile
 
 import pypdfium2 as pdfium
+from pypdf import PdfReader
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import PageBreak, SimpleDocTemplate, Spacer
 
@@ -93,7 +94,48 @@ class EbookCompiler:
 
         raise ValueError(f"Extensão não suportada: {extensao}")
 
-    def compilar(self):
+    def analisar_documento(self):
+        if not os.path.exists(self.arquivo_fonte):
+            raise FileNotFoundError(f"Arquivo não encontrado: {self.arquivo_fonte}")
+
+        extensao = os.path.splitext(self.arquivo_fonte)[1].lower()
+        relatorio = {
+            "formato": extensao.lstrip(".").upper(),
+            "paginas_detectadas": None,
+            "paginas_com_texto": None,
+            "paginas_com_imagens": None,
+            "colunas_detectadas": None,
+        }
+
+        if extensao == ".pdf":
+            import pdfplumber
+
+            paginas_texto = 0
+            paginas_imagens = 0
+            colunas = 0
+            with pdfplumber.open(self.arquivo_fonte) as pdf:
+                relatorio["paginas_detectadas"] = len(pdf.pages)
+                for pagina in pdf.pages:
+                    if pagina.extract_text():
+                        paginas_texto += 1
+                    if pagina.images:
+                        paginas_imagens += 1
+                    palavras = pagina.extract_words() or []
+                    meio = pagina.width / 2
+                    if (
+                        sum(p["x0"] < meio for p in palavras) >= 8
+                        and sum(p["x0"] >= meio for p in palavras) >= 8
+                    ):
+                        colunas += 1
+            relatorio["paginas_com_texto"] = paginas_texto
+            relatorio["paginas_com_imagens"] = paginas_imagens
+            relatorio["colunas_detectadas"] = colunas
+        else:
+            relatorio["paginas_detectadas"] = 1
+
+        return relatorio
+
+    def compilar(self, analise=None):
         conteudo_flowables = self._carregar_conteudo()
         doc = self._criar_documento(self.arquivo_saida)
         capa_handler = self._criar_capa_handler()
@@ -107,6 +149,11 @@ class EbookCompiler:
             onLaterPages=capa_handler.desenhar_fundo_paginas,
             canvasmaker=self._criar_canvas_com_tema,
         )
+        relatorio = dict(analise or self.analisar_documento())
+        relatorio["arquivo_saida"] = self.arquivo_saida
+        relatorio["tamanho_saida_bytes"] = os.path.getsize(self.arquivo_saida)
+        relatorio["paginas_geradas"] = len(PdfReader(self.arquivo_saida).pages)
+        return relatorio
 
     def gerar_preview_capa_fast(self, dpi=100):
         file_descriptor, tmp_pdf_path = tempfile.mkstemp(

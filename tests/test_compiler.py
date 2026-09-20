@@ -149,6 +149,33 @@ def test_compilador_rejeita_arquivo_inexistente(tmp_path: Path):
         compilador.compilar()
 
 
+def test_compilador_analisa_pdf_e_retorna_relatorio(tmp_path: Path):
+    fonte = tmp_path / "analise.pdf"
+    pdf = canvas.Canvas(str(fonte), pagesize=A4)
+    pdf.drawString(50, 700, "Texto da página")
+    pdf.save()
+
+    relatorio = EbookCompiler(str(fonte), str(tmp_path / "saida.pdf")).analisar_documento()
+
+    assert relatorio["formato"] == "PDF"
+    assert relatorio["paginas_detectadas"] == 1
+    assert relatorio["paginas_com_texto"] == 1
+    assert relatorio["paginas_com_imagens"] == 0
+    assert relatorio["colunas_detectadas"] == 0
+
+
+def test_compilador_retorna_relatorio_da_saida(tmp_path: Path):
+    fonte = tmp_path / "conteudo.md"
+    saida = tmp_path / "saida.pdf"
+    fonte.write_text("# Título\n\nConteúdo", encoding="utf-8")
+
+    relatorio = EbookCompiler(str(fonte), str(saida)).compilar()
+
+    assert relatorio["formato"] == "MD"
+    assert relatorio["paginas_geradas"] >= 1
+    assert relatorio["tamanho_saida_bytes"] == saida.stat().st_size
+
+
 def test_compilador_gera_pdf_de_markdown(tmp_path: Path):
     fonte = tmp_path / "conteudo.md"
     saida = tmp_path / "saida.pdf"
