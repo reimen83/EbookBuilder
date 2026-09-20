@@ -17,6 +17,9 @@ O EbookBuilder foi projetado para processamento local: os arquivos do usuário n
   imagens e elementos gráficos.
 - Renderização de páginas preservadas em 300 DPI para melhorar a nitidez do texto
   e das linhas.
+- Em PDFs com mais de 100 páginas, a resolução de preservação é ajustada para
+  150 DPI para evitar consumo excessivo de memória; páginas com imagens mantêm
+  suas cores originais.
 - Aplicação da cor de fundo do tema escolhido nas páginas preservadas, com proteção
   automática de caixas e blocos decorativos.
 - Execução como aplicação desktop no Linux e no Windows.
