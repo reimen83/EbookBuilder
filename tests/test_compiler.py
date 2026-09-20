@@ -174,11 +174,12 @@ def test_colunas_pdf_recriam_divisorias_com_table_style(tmp_path: Path):
             ("Coluna esquerda", "Coluna direita", 100),
             ("Oração esquerda", "Oração direita", 120),
         ],
-        separadores=[100],
+        separadores=[(42, 298, 100), (298, 553, 100)],
+        divisorias=[(297, 50, 150)],
     )
 
-    assert any(comando[0] == "LINEAFTER" for comando in tabela._linecmds)
     assert any(comando[0] == "LINEABOVE" for comando in tabela._linecmds)
+    assert any(comando[0] == "LINEAFTER" for comando in tabela._linecmds)
 
 
 def test_preview_usa_temporario_unico_e_limpa_arquivo(tmp_path: Path, monkeypatch):
