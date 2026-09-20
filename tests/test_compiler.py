@@ -356,6 +356,30 @@ def test_pdf_page_image_preserva_texto_claro_em_bloco_protegido():
     assert recolorida.getpixel((10, 10))[:3] == (210, 220, 240)
 
 
+def test_pdf_preservado_usa_renderizacao_de_alta_resolucao():
+    from document_readers import PdfParser
+
+    class ImagemRenderizada:
+        def __init__(self):
+            self.original = Image.new("RGB", (20, 20), color="white")
+
+    class Pagina:
+        width = 612
+        height = 792
+        rects = []
+
+        def to_image(self, resolution):
+            assert resolution == 300
+            return ImagemRenderizada()
+
+    flowables = PdfParser._preservar_pagina_como_imagem(
+        PdfParser(None, SmartParser),
+        Pagina(),
+    )
+
+    assert isinstance(flowables[0], PdfPageImage)
+
+
 def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
     compiler = EbookCompiler("conteudo.md", "saida.pdf")
     tabela = compiler.renderer._gerar_colunas_pdf_flowable(
