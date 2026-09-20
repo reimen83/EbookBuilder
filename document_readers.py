@@ -18,6 +18,8 @@ except ImportError:
 
 
 PDF_RENDER_DPI = 300
+PDF_LARGE_DOCUMENT_DPI = 150
+PDF_LARGE_DOCUMENT_PAGE_LIMIT = 100
 
 
 class BaseDocumentParser:
@@ -323,9 +325,10 @@ class PdfParser(BaseDocumentParser):
         background_color=None,
         text_color=None,
         protected_regions=None,
+        render_dpi=PDF_RENDER_DPI,
         preservar_cores_originais=False,
     ):
-        imagem = pagina.to_image(resolution=PDF_RENDER_DPI).original
+        imagem = pagina.to_image(resolution=render_dpi).original
         protected_regions = self._regioes_protegidas(pagina, imagem.size)
         return [
             PdfPageImage(
@@ -356,7 +359,21 @@ class PdfParser(BaseDocumentParser):
             if cor_texto is not None:
                 text_color = (cor_texto.red, cor_texto.green, cor_texto.blue)
         with pdfplumber.open(caminho_pdf) as pdf:
+            render_dpi = (
+                PDF_LARGE_DOCUMENT_DPI
+                if len(pdf.pages) > PDF_LARGE_DOCUMENT_PAGE_LIMIT
+                else PDF_RENDER_DPI
+            )
             for pagina in pdf.pages:
+                if pagina.images:
+                    conteudo.extend(
+                        self._preservar_pagina_como_imagem(
+                            pagina,
+                            render_dpi=render_dpi,
+                            preservar_cores_originais=True,
+                        )
+                    )
+                    continue
                 colunas_extraidas = self._extrair_linhas_de_duas_colunas(pagina)
                 if colunas_extraidas is not None:
                     linhas_colunas, separadores, divisorias = colunas_extraidas
