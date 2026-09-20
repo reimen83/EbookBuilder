@@ -63,7 +63,7 @@ class PdfParser(BaseDocumentParser):
             keep_blank_chars=False,
         )
         if not words:
-            return []
+            return None
 
         meio = pagina.width / 2
         esquerda = [word for word in words if word["x0"] < meio]

@@ -248,6 +248,15 @@ def test_colunas_pdf_ignora_registros_vazios():
     assert len(tabela._cellvalues) == 1
 
 
+def test_pdf_sem_palavras_nao_e_interpretado_como_duas_colunas():
+    from document_readers import PdfParser
+
+    pagina = type("PaginaVazia", (), {"extract_words": lambda self, **kwargs: []})()
+    parser = PdfParser(None, SmartParser)
+
+    assert parser._extrair_linhas_de_duas_colunas(pagina) is None
+
+
 def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
     compiler = EbookCompiler("conteudo.md", "saida.pdf")
     tabela = compiler.renderer._gerar_colunas_pdf_flowable(
