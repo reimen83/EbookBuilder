@@ -329,6 +329,19 @@ def test_pdf_page_image_recolore_fundo_sem_alterar_texto():
     assert recolorida.getpixel((5, 6))[:3] == (20, 20, 20)
 
 
+def test_pdf_page_image_escurece_texto_claro_em_tema_claro():
+    imagem = Image.new("RGB", (12, 12), color=(240, 240, 240))
+    imagem.putpixel((5, 6), (180, 190, 220))
+
+    recolorida = PdfPageImage.recolorir_fundo(
+        imagem,
+        (1, 1, 1),
+        text_color=(0.1, 0.1, 0.1),
+    )
+
+    assert recolorida.getpixel((5, 6))[:3] == (25, 25, 25)
+
+
 def test_divisorias_verticais_sao_remapeadas_ao_dividir_tabela():
     compiler = EbookCompiler("conteudo.md", "saida.pdf")
     tabela = compiler.renderer._gerar_colunas_pdf_flowable(
