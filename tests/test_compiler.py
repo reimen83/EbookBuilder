@@ -9,7 +9,7 @@ from reportlab.pdfgen import canvas
 
 import compiler as compiler_module
 from compiler import EbookCompiler, SmartParser, ThemeEngine
-from document_readers import PdfPageImage
+from document_readers import PdfPageImage, PdfParser
 
 
 def test_inferir_estrutura_reconhece_titulo_secao_e_lista():
@@ -313,6 +313,31 @@ def test_pdf_com_imagem_preserva_a_pagina_renderizada(tmp_path: Path):
     flowables = EbookCompiler(str(fonte), str(tmp_path / "saida.pdf"))._parse_pdf(str(fonte))
 
     assert isinstance(flowables[0], PdfPageImage)
+
+
+def test_pdf_com_imagem_preserva_as_cores_originais():
+    class ImagemRenderizada:
+        original = Image.new("RGB", (20, 20), color=(240, 240, 240))
+
+    class Pagina:
+        width = 612
+        height = 792
+        images = [{"x0": 0, "x1": 20, "top": 0, "bottom": 20}]
+        rects = []
+
+        def to_image(self, resolution):
+            assert resolution == 300
+            return ImagemRenderizada()
+
+    flowables = PdfParser._preservar_pagina_como_imagem(
+        PdfParser(None, SmartParser),
+        Pagina(),
+        background_color=(0.05, 0.05, 0.08),
+        text_color=(0.9, 0.9, 0.9),
+        preservar_cores_originais=True,
+    )
+
+    assert flowables[0].image.getRGBData()[0:3] == bytes((240, 240, 240))
 
 
 def test_pdf_page_image_recolore_fundo_sem_alterar_texto():
