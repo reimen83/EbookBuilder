@@ -19,6 +19,7 @@ class _SegmentedColumnsTable(Table):
         offset = 0
         for fragment in fragments:
             row_count = len(fragment._rowHeights)
+            fragment.divider_color = self.divider_color
             fragment.divider_segments = [
                 (max(start - offset, 0), min(end - offset, row_count - 1))
                 for start, end in self.divider_segments
@@ -34,7 +35,7 @@ class _SegmentedColumnsTable(Table):
 
         canvas = self.canv
         canvas.saveState()
-        canvas.setStrokeColor(self.divider_color)
+        canvas.setStrokeColor(self.divider_color or colors.black)
         canvas.setLineWidth(0.35)
         gap = 3
         x = self._colWidths[0]
