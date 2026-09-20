@@ -102,7 +102,7 @@ def test_subtitulo_longo_quebra_linhas_na_capa(tmp_path: Path):
     with pdfplumber.open(saida) as pdf:
         texto = pdf.pages[0].extract_text()
     assert texto.count("\n") >= 2
-    assert "automáticadentrodacaixadacapa" in texto
+    assert "automática dentro da caixa da capa" in texto
 
 
 def test_titulo_longo_sem_espacos_respeita_largura_da_capa():
