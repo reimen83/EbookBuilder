@@ -1,5 +1,6 @@
 import io
 import os
+import re
 from xml.sax.saxutils import escape
 
 import requests
@@ -77,13 +78,22 @@ class CapaHandler:
         linhas = []
         for paragrafo in texto.splitlines() or [""]:
             atual = ""
-            for palavra in paragrafo.split() or [""]:
-                separador = " " if atual else ""
+            tokens = re.findall(r"\S+| +", paragrafo) or [""]
+            for token in tokens:
+                if token.isspace():
+                    if len(token) >= 2 and atual:
+                        linhas.append(atual)
+                        atual = ""
+                    elif atual:
+                        atual += " "
+                    continue
+
+                palavra = token
+                separador = ""
                 candidato = f"{atual}{separador}{palavra}"
                 if atual and stringWidth(candidato, fonte, tamanho) > largura:
                     linhas.append(atual)
                     atual = ""
-                separador = " " if atual else ""
                 while palavra and stringWidth(
                     f"{atual}{separador}{palavra}", fonte, tamanho
                 ) > largura:
