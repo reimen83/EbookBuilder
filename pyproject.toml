@@ -32,5 +32,8 @@ exclude = ["build", "dist", "venv"]
 [tool.setuptools]
 py-modules = ["gui", "compiler", "parsers", "themes", "covers", "cover_cache", "pdf_cache", "pagination", "renderer", "document_readers", "validation", "preview_state", "atualizar"]
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [tool.setuptools.package-data]
 "*" = ["assets/**/*"]

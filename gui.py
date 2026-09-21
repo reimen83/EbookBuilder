@@ -5,11 +5,13 @@ from tkinter import filedialog, messagebox
 import traceback
 from queue import Empty, Queue
 from dataclasses import dataclass
+from pathlib import Path
 
 import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from compiler import EbookCompiler, ThemeEngine
+from app.data.project_manager import ProjectManager
 from preview_state import build_preview_signature
 from validation import (
     build_output_path,
@@ -35,6 +37,8 @@ class EbookFormConfig:
     capa: str
     tema: str
     variacao: str | None = None
+    autor: str = ""
+    palavras_chave: str = ""
 
     @property
     def tema_ativo(self) -> str:
@@ -70,6 +74,9 @@ class EbookBuilderGUI(ctk.CTk):
         self.sub_titulo_ebook = tk.StringVar()
         self.caminho_capa_local = tk.StringVar()
         self.url_capa = tk.StringVar()
+        self.autor_ebook = tk.StringVar()
+        self.palavras_chave = tk.StringVar()
+        self.project_manager = ProjectManager()
 
         self.preview_ctk_image = None
         self.preview_tk_image = None
@@ -164,8 +171,9 @@ class EbookBuilderGUI(ctk.CTk):
 
     def _construir_interface(self):
         # Ajuste proporcional das colunas: Esquerda (40%) e Direita/Preview (60%)
-        self.grid_columnconfigure(0, weight=4)
-        self.grid_columnconfigure(1, weight=6)
+        self.grid_columnconfigure(0, weight=3)
+        self.grid_columnconfigure(1, weight=5)
+        self.grid_columnconfigure(2, weight=2)
         self.grid_rowconfigure(0, weight=1)
 
         # ==================== PAINEL ESQUERDO ====================
@@ -318,6 +326,45 @@ class EbookBuilderGUI(ctk.CTk):
         )
         self.lbl_imagem_preview.pack(expand=True, fill="both", padx=10, pady=10)
 
+        # ==================== PAINEL DIREITO: INSPECTOR ====================
+        frame_inspector = ctk.CTkFrame(self)
+        frame_inspector.grid(row=0, column=2, sticky="nsew", padx=(0, 15), pady=15)
+        ctk.CTkLabel(
+            frame_inspector,
+            text="Inspector",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(anchor="w", padx=15, pady=(15, 2))
+        ctk.CTkLabel(
+            frame_inspector,
+            text="Propriedades do projeto e metadados do PDF",
+            text_color="#94A3B8",
+            wraplength=210,
+        ).pack(anchor="w", padx=15, pady=(0, 18))
+        ctk.CTkLabel(frame_inspector, text="Autor").pack(anchor="w", padx=15)
+        self.entry_autor = ctk.CTkEntry(
+            frame_inspector,
+            textvariable=self.autor_ebook,
+            placeholder_text="Nome do autor",
+        )
+        self.entry_autor.pack(fill="x", padx=15, pady=(4, 12))
+        self._adicionar_suporte_clique_direito(self.entry_autor)
+        ctk.CTkLabel(frame_inspector, text="Palavras-chave").pack(anchor="w", padx=15)
+        self.entry_palavras_chave = ctk.CTkEntry(
+            frame_inspector,
+            textvariable=self.palavras_chave,
+            placeholder_text="ficção, ebook, literatura",
+        )
+        self.entry_palavras_chave.pack(fill="x", padx=15, pady=(4, 12))
+        self._adicionar_suporte_clique_direito(self.entry_palavras_chave)
+        self.lbl_inspector = ctk.CTkLabel(
+            frame_inspector,
+            text="Selecione um campo para editar as propriedades do projeto.",
+            text_color="#94A3B8",
+            wraplength=210,
+            justify="left",
+        )
+        self.lbl_inspector.pack(anchor="w", padx=15, pady=10)
+
     def _tema_ativo(self):
         return self.mapa_temas.get(self.combo_tema.get(), DEFAULT_THEME)
 
@@ -330,6 +377,8 @@ class EbookBuilderGUI(ctk.CTk):
             capa=self.url_capa.get().strip() or self.caminho_capa_local.get().strip(),
             tema=self._tema_ativo(),
             variacao=self._obter_id_variacao_selecionada(),
+            autor=self.autor_ebook.get().strip(),
+            palavras_chave=self.palavras_chave.get().strip(),
         )
 
     def _ao_alterar_tema(self, escolha_tema):
@@ -393,6 +442,12 @@ class EbookBuilderGUI(ctk.CTk):
                 sub_titulo_ebook=config.subtitulo_ativo,
                 tema=config.tema_ativo,
                 variacao_capa=config.variacao,
+                autor=config.autor,
+                palavras_chave=[
+                    palavra.strip()
+                    for palavra in config.palavras_chave.split(",")
+                    if palavra.strip()
+                ],
             )
             imagens_pil = compiler.gerar_preview_capa_fast(dpi=100)
             imagem = imagens_pil[0].copy() if imagens_pil else None
@@ -504,6 +559,12 @@ class EbookBuilderGUI(ctk.CTk):
                 sub_titulo_ebook=form.subtitulo_ativo,
                 tema=form.tema_ativo,
                 variacao_capa=form.variacao,
+                autor=form.autor,
+                palavras_chave=[
+                    palavra.strip()
+                    for palavra in form.palavras_chave.split(",")
+                    if palavra.strip()
+                ],
             )
             analise = compiler.analisar_documento()
             avisos = []
@@ -521,6 +582,22 @@ class EbookBuilderGUI(ctk.CTk):
                 " • ".join(avisos) or "Estrutura simples detectada",
             )
             relatorio = compiler.compilar(analise)
+            try:
+                self.project_manager.save_project(
+                    Path(form.origem).stem,
+                    {
+                        "origem": form.origem,
+                        "destino": saída,
+                        "titulo": form.titulo_ativo,
+                        "subtitulo": form.subtitulo_ativo,
+                        "tema": form.tema_ativo,
+                        "variacao": form.variacao,
+                        "autor": form.autor,
+                        "palavras_chave": form.palavras_chave,
+                    },
+                )
+            except Exception:
+                traceback.print_exc()
             self.after(0, self._compilacao_sucesso, form, saída, relatorio)
         except Exception as e:
             traceback.print_exc()
