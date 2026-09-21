@@ -23,6 +23,18 @@ O EbookBuilder foi projetado para processamento local: os arquivos do usuário n
 - Páginas rasterizadas são mantidas em cache no disco local, permitindo que
   conversões repetidas do mesmo PDF e das mesmas opções sejam muito mais rápidas
   sem manter todo o documento na memória.
+
+## Arquitetura v2 local-first
+
+O projeto também possui uma base modular em `app/`, organizada em:
+
+- `app/core`: flowables de callout, CTA e mockups de dispositivos;
+- `app/data`: persistência local SQLite de projetos, ativos e versões;
+- `app/utils`: metadados padrão e XMP para os PDFs exportados.
+
+O banco local fica em `~/.ebookbuilder/projects.db`. Nenhum conteúdo do projeto
+é enviado para serviços externos. A interface inclui um painel Inspector para
+metadados do projeto, como autor e palavras-chave.
 - Aplicação da cor de fundo do tema escolhido nas páginas preservadas, com proteção
   automática de caixas e blocos decorativos.
 - Execução como aplicação desktop no Linux e no Windows.

@@ -8,6 +8,7 @@ from reportlab.platypus import PageBreak, SimpleDocTemplate, Spacer
 
 from covers import CapaHandler
 from document_readers import DocumentReader
+from app.utils.metadata import inject_pdf_metadata
 from pagination import NumberedCanvas
 from parsers import SmartParser
 from renderer import MarkdownRenderer
@@ -24,11 +25,19 @@ class EbookCompiler:
         sub_titulo_ebook="",
         tema="music_prod",
         variacao_capa=None,
+        autor="",
+        palavras_chave=None,
+        assunto="",
+        copyright_status="",
     ):
         self.arquivo_fonte = os.fspath(arquivo_fonte)
         self.arquivo_saida = os.fspath(arquivo_saida)
         self.capa_url = os.fspath(capa_url) if capa_url else capa_url
         self.variacao_capa = variacao_capa
+        self.autor = autor.strip()
+        self.palavras_chave = list(palavras_chave or [])
+        self.assunto = assunto.strip()
+        self.copyright_status = copyright_status.strip()
         self.tema = tema
         self.theme_cfg = ThemeEngine.obter_estilos(self.tema)
         self.renderer = MarkdownRenderer(self.theme_cfg)
@@ -144,6 +153,14 @@ class EbookCompiler:
             onFirstPage=capa_handler.desenhar_capa,
             onLaterPages=capa_handler.desenhar_fundo_paginas,
             canvasmaker=self._criar_canvas_com_tema,
+        )
+        inject_pdf_metadata(
+            self.arquivo_saida,
+            title=self.titulo_ebook,
+            author=self.autor,
+            keywords=self.palavras_chave,
+            subject=self.assunto or self.sub_titulo_ebook,
+            copyright_status=self.copyright_status,
         )
         relatorio = dict(analise or self.analisar_documento())
         relatorio["arquivo_saida"] = self.arquivo_saida
