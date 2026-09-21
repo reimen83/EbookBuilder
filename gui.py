@@ -103,6 +103,9 @@ class EbookBuilderGUI(ctk.CTk):
         self._criar_menu_contexto()
         self._construir_interface()
         self._carregar_projetos()
+        self.bind_all("<MouseWheel>", self._rolar_configuracoes, add="+")
+        self.bind_all("<Button-4>", self._rolar_configuracoes, add="+")
+        self.bind_all("<Button-5>", self._rolar_configuracoes, add="+")
         self.bind("<Button-1>", lambda event: self._fechar_menu_contexto())
         self.after(50, self._processar_resultados_preview)
 
@@ -181,7 +184,11 @@ class EbookBuilderGUI(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # ==================== PAINEL ESQUERDO ====================
-        frame_esquerda = ctk.CTkFrame(self)
+        frame_esquerda = ctk.CTkScrollableFrame(
+            self,
+            scrollbar_button_color="#64748B",
+            scrollbar_button_hover_color="#94A3B8",
+        )
         self.frame_configuracoes = frame_esquerda
         frame_esquerda.grid(row=0, column=0, sticky="nsew", padx=(15, 7), pady=15)
 
@@ -210,7 +217,8 @@ class EbookBuilderGUI(ctk.CTk):
             command=self._salvar_projeto_atual,
         ).pack(fill="x", padx=10, pady=(0, 8))
 
-        self.frame_estrutura = ctk.CTkScrollableFrame(frame_esquerda, height=120)
+        self.frame_estrutura = ctk.CTkFrame(frame_esquerda, height=120)
+        self.frame_estrutura.pack_propagate(False)
         self.frame_estrutura.pack(fill="x", padx=5, pady=(0, 6))
         ctk.CTkLabel(
             self.frame_estrutura,
