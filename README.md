@@ -33,8 +33,11 @@ O projeto também possui uma base modular em `app/`, organizada em:
 - `app/utils`: metadados padrão e XMP para os PDFs exportados.
 
 O banco local fica em `~/.ebookbuilder/projects.db`. Nenhum conteúdo do projeto
-é enviado para serviços externos. A interface inclui um painel Inspector para
-metadados do projeto, como autor e palavras-chave.
+é enviado para serviços externos. A interface evolui gradualmente para um
+dashboard de três painéis: a sidebar mantém o projeto, capítulos e ativos; o
+canvas central exibe o preview visual; e o Inspector reúne propriedades como
+autor e palavras-chave. O fluxo de configuração e compilação anterior continua
+disponível como fallback durante essa evolução.
 - Aplicação da cor de fundo do tema escolhido nas páginas preservadas, com proteção
   automática de caixas e blocos decorativos.
 - Execução como aplicação desktop no Linux e no Windows.
