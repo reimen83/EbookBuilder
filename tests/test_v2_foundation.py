@@ -13,10 +13,12 @@ def test_project_manager_persiste_configuracao_e_historico(tmp_path: Path):
     manager = ProjectManager(tmp_path / "projects.db")
     project_id = manager.save_project("Livro", {"tema": "modern"})
     manager.save_project("Livro", {"tema": "dark_tech"}, project_id=project_id)
+    manager.add_asset(project_id, tmp_path / "capitulo.md", kind="document")
 
     project = manager.get_project(project_id)
     assert project["settings"]["tema"] == "dark_tech"
     assert manager.list_projects()[0]["id"] == project_id
+    assert manager.list_assets(project_id)[0]["kind"] == "document"
 
 
 def test_flowables_v2_calculam_tamanho():

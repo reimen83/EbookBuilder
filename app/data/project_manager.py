@@ -86,6 +86,15 @@ class ProjectManager:
             ).fetchall()
         return [{"id": row[0], "name": row[1], "updated_at": row[2]} for row in rows]
 
+    def list_assets(self, project_id):
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT id, path, kind FROM project_assets "
+                "WHERE project_id=? ORDER BY id",
+                (project_id,),
+            ).fetchall()
+        return [{"id": row[0], "path": row[1], "kind": row[2]} for row in rows]
+
     def add_asset(self, project_id, path, kind="image"):
         with self._connect() as connection:
             connection.execute(
