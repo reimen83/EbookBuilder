@@ -1,5 +1,6 @@
 import os
 
+from pdf_cache import PdfPageCache
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Flowable, PageBreak
 from PIL import Image
@@ -34,24 +35,28 @@ class BaseDocumentParser:
 class PdfPageImage(Flowable):
     def __init__(
         self,
-        image,
-        page_width,
-        page_height,
+        image=None,
+        page_width=None,
+        page_height=None,
         background_color=None,
         text_color=None,
         protected_regions=None,
+        image_path=None,
     ):
         super().__init__()
-        self.image = ImageReader(
-            self.recolorir_fundo(
-                image,
-                background_color,
-                text_color=text_color,
-                protected_regions=protected_regions,
+        if image_path is not None:
+            self.image = ImageReader(str(image_path))
+        else:
+            self.image = ImageReader(
+                self.recolorir_fundo(
+                    image,
+                    background_color,
+                    text_color=text_color,
+                    protected_regions=protected_regions,
+                )
+                if background_color is not None
+                else image
             )
-            if background_color is not None
-            else image
-        )
         self.page_width = page_width
         self.page_height = page_height
 
@@ -327,9 +332,48 @@ class PdfParser(BaseDocumentParser):
         protected_regions=None,
         render_dpi=PDF_RENDER_DPI,
         preservar_cores_originais=False,
+        cache=None,
+        cache_source_key=None,
+        page_number=None,
     ):
+        cache_path = None
+        if cache is not None:
+            cache_path = cache.page_path(
+                cache_source_key,
+                page_number,
+                render_dpi,
+                background_color,
+                text_color,
+                preservar_cores_originais,
+            )
+        if cache_path is not None and cache.is_valid(cache_path):
+            return [
+                PdfPageImage(
+                    page_width=pagina.width,
+                    page_height=pagina.height,
+                    image_path=cache_path,
+                ),
+                PageBreak(),
+            ]
+
         imagem = pagina.to_image(resolution=render_dpi).original
         protected_regions = self._regioes_protegidas(pagina, imagem.size)
+        if cache_path is not None:
+            imagem = PdfPageImage.recolorir_fundo(
+                imagem,
+                None if preservar_cores_originais else background_color,
+                text_color=None if preservar_cores_originais else text_color,
+                protected_regions=protected_regions,
+            )
+            cache.save(imagem, cache_path)
+            return [
+                PdfPageImage(
+                    page_width=pagina.width,
+                    page_height=pagina.height,
+                    image_path=cache_path,
+                ),
+                PageBreak(),
+            ]
         return [
             PdfPageImage(
                 imagem,
@@ -359,18 +403,23 @@ class PdfParser(BaseDocumentParser):
             if cor_texto is not None:
                 text_color = (cor_texto.red, cor_texto.green, cor_texto.blue)
         with pdfplumber.open(caminho_pdf) as pdf:
+            cache = PdfPageCache()
+            cache_source_key = cache.source_key(caminho_pdf)
             render_dpi = (
                 PDF_LARGE_DOCUMENT_DPI
                 if len(pdf.pages) > PDF_LARGE_DOCUMENT_PAGE_LIMIT
                 else PDF_RENDER_DPI
             )
-            for pagina in pdf.pages:
+            for page_number, pagina in enumerate(pdf.pages):
                 if pagina.images:
                     conteudo.extend(
                         self._preservar_pagina_como_imagem(
                             pagina,
                             render_dpi=render_dpi,
                             preservar_cores_originais=True,
+                            cache=cache,
+                            cache_source_key=cache_source_key,
+                            page_number=page_number,
                         )
                     )
                     continue
@@ -397,6 +446,9 @@ class PdfParser(BaseDocumentParser):
                         # escaneada ou uma composição híbrida. Alterar pixels
                         # nesses casos destrói cores e detalhes do original.
                         preservar_cores_originais=bool(pagina.images),
+                        cache=cache,
+                        cache_source_key=cache_source_key,
+                        page_number=page_number,
                     )
                 )
 

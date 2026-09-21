@@ -20,6 +20,9 @@ O EbookBuilder foi projetado para processamento local: os arquivos do usuário n
 - Em PDFs com mais de 100 páginas, a resolução de preservação é ajustada para
   150 DPI para evitar consumo excessivo de memória; páginas com imagens mantêm
   suas cores originais.
+- Páginas rasterizadas são mantidas em cache no disco local, permitindo que
+  conversões repetidas do mesmo PDF e das mesmas opções sejam muito mais rápidas
+  sem manter todo o documento na memória.
 - Aplicação da cor de fundo do tema escolhido nas páginas preservadas, com proteção
   automática de caixas e blocos decorativos.
 - Execução como aplicação desktop no Linux e no Windows.
