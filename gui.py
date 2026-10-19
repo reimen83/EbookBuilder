@@ -103,6 +103,8 @@ class EbookBuilderGUI(ctk.CTk):
         self._criar_menu_contexto()
         self._construir_interface()
         self._carregar_projetos()
+        self.bind_all("<Button-4>", self._rolar_configuracoes, add="+")
+        self.bind_all("<Button-5>", self._rolar_configuracoes, add="+")
         self.bind("<Button-1>", lambda event: self._fechar_menu_contexto())
         self.after(50, self._processar_resultados_preview)
 
@@ -146,17 +148,17 @@ class EbookBuilderGUI(ctk.CTk):
         target = getattr(entry_widget, "_entry", entry_widget)
         target.bind("<Button-3>", self._exibir_menu_contexto)
 
-    def _widget_esta_no_frame(self, widget, frame):
+    def _scrollable_ancestral(self, widget):
         atual = widget
         while atual is not None:
-            if atual == frame:
-                return True
+            if hasattr(atual, "_parent_canvas") and hasattr(atual, "_parent_frame"):
+                return atual
             atual = getattr(atual, "master", None)
-        return False
+        return None
 
     def _rolar_configuracoes(self, event):
-        frame = getattr(self, "frame_configuracoes", None)
-        if frame is None or not self._widget_esta_no_frame(event.widget, frame):
+        frame = self._scrollable_ancestral(event.widget)
+        if frame is None:
             return
 
         canvas = frame._parent_canvas
@@ -182,7 +184,6 @@ class EbookBuilderGUI(ctk.CTk):
 
         # ==================== PAINEL ESQUERDO ====================
         frame_esquerda = ctk.CTkFrame(self)
-        self.frame_configuracoes = frame_esquerda
         frame_esquerda.grid(row=0, column=0, sticky="nsew", padx=(15, 7), pady=15)
 
         lbl_titulo = ctk.CTkLabel(frame_esquerda, text="EbookBuilder", font=ctk.CTkFont(size=24, weight="bold"), text_color="#F59E0B")
@@ -210,7 +211,8 @@ class EbookBuilderGUI(ctk.CTk):
             command=self._salvar_projeto_atual,
         ).pack(fill="x", padx=10, pady=(0, 8))
 
-        self.frame_estrutura = ctk.CTkScrollableFrame(frame_esquerda, height=120)
+        self.frame_estrutura = ctk.CTkFrame(frame_esquerda, height=120)
+        self.frame_estrutura.pack_propagate(False)
         self.frame_estrutura.pack(fill="x", padx=5, pady=(0, 6))
         ctk.CTkLabel(
             self.frame_estrutura,
@@ -234,8 +236,18 @@ class EbookBuilderGUI(ctk.CTk):
 
         abas = ctk.CTkTabview(frame_esquerda)
         abas.pack(fill="both", expand=True, padx=5, pady=(0, 8))
-        aba_projeto = abas.add("Projeto")
-        aba_aparencia = abas.add("Aparência")
+        aba_projeto = ctk.CTkScrollableFrame(
+            abas.add("Projeto"),
+            scrollbar_button_color="#64748B",
+            scrollbar_button_hover_color="#94A3B8",
+        )
+        aba_projeto.pack(fill="both", expand=True)
+        aba_aparencia = ctk.CTkScrollableFrame(
+            abas.add("Aparência"),
+            scrollbar_button_color="#64748B",
+            scrollbar_button_hover_color="#94A3B8",
+        )
+        aba_aparencia.pack(fill="both", expand=True)
 
         # 1. ORIGEM E DESTINO
         frame_fonte = ctk.CTkFrame(aba_projeto)
