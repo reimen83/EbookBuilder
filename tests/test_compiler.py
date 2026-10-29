@@ -196,6 +196,23 @@ def test_compilador_gera_pdf_de_markdown(tmp_path: Path):
     assert saida.read_bytes().startswith(b"%PDF")
 
 
+def test_autor_aparece_no_rodape_do_pdf(tmp_path: Path):
+    fonte = tmp_path / "conteudo.md"
+    saida = tmp_path / "saida-autor.pdf"
+    fonte.write_text("# Título\n\nConteúdo do e-book.", encoding="utf-8")
+
+    EbookCompiler(
+        arquivo_fonte=fonte,
+        arquivo_saida=saida,
+        autor="Reinaldo Silva",
+        tema="modern",
+    ).compilar()
+
+    texto = "\n".join(page.extract_text() or "" for page in PdfReader(saida).pages)
+    assert "Reinaldo Silva" in texto
+    assert "EbookBuilder Series" not in texto
+
+
 def test_compilador_le_docx(tmp_path: Path):
     fonte = tmp_path / "conteudo.docx"
     documento = Document()

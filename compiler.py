@@ -92,6 +92,7 @@ class EbookCompiler:
     def _criar_canvas_com_tema(self, *args, **kwargs):
         canvas_inst = NumberedCanvas(*args, **kwargs)
         canvas_inst.tema_nome = self.tema
+        canvas_inst.autor = self.autor
         return canvas_inst
 
     def _carregar_conteudo(self):

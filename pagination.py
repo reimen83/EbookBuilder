@@ -9,6 +9,7 @@ class NumberedCanvas(canvas.Canvas):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
         self.tema_nome = "modern"
+        self.autor = ""
 
     def showPage(self):
         self._saved_page_states.append(dict(self.__dict__))
@@ -35,8 +36,7 @@ class NumberedCanvas(canvas.Canvas):
         self.setLineWidth(0.5)
         self.line(54, 792, 541, 792)
 
-        self.drawString(54, 36, "EbookBuilder Series")
+        self.drawString(54, 36, self.autor or "EbookBuilder Series")
         self.drawRightString(541, 36, f"Página {self._pageNumber} de {page_count}")
         self.line(54, 48, 541, 48)
         self.restoreState()
-
