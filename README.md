@@ -23,6 +23,9 @@ O EbookBuilder foi projetado para processamento local: os arquivos do usuário n
 - Páginas rasterizadas são mantidas em cache no disco local, permitindo que
   conversões repetidas do mesmo PDF e das mesmas opções sejam muito mais rápidas
   sem manter todo o documento na memória.
+- Composição de um único e-book a partir de um arquivo principal e vários
+  conteúdos adicionais em `.md`, `.txt`, `.docx` ou `.pdf`, com ordenação manual
+  e quebra de página entre as fontes.
 
 ## Arquitetura v2 local-first
 

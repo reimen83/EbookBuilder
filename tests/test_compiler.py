@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from docx import Document
 from PIL import Image
+from pypdf import PdfReader
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import Table
 from reportlab.pdfgen import canvas
@@ -508,3 +509,24 @@ def test_preview_usa_capa_local_e_compila_com_caminhos_path(tmp_path: Path):
     assert imagens[0].size == (827, 1170)
     assert saida.exists()
     assert saida.read_bytes().startswith(b"%PDF")
+
+
+def test_compilador_unifica_fontes_adicionais_em_ordem(tmp_path: Path):
+    principal = tmp_path / "principal.md"
+    adicional = tmp_path / "adicional.txt"
+    saida = tmp_path / "composicao.pdf"
+    principal.write_text("# Principal\n\nConteúdo inicial", encoding="utf-8")
+    adicional.write_text("Conteúdo adicional\nSegunda linha", encoding="utf-8")
+
+    compiler = EbookCompiler(
+        arquivo_fonte=principal,
+        arquivos_fonte=[adicional],
+        arquivo_saida=saida,
+        tema="modern",
+    )
+
+    relatorio = compiler.compilar()
+    texto = "\n".join(page.extract_text() or "" for page in PdfReader(saida).pages)
+
+    assert relatorio["paginas_geradas"] >= 2
+    assert texto.index("Principal") < texto.index("Conteúdo adicional")

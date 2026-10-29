@@ -39,6 +39,7 @@ class EbookFormConfig:
     variacao: str | None = None
     autor: str = ""
     palavras_chave: str = ""
+    fontes_adicionais: tuple[str, ...] = ()
 
     @property
     def tema_ativo(self) -> str:
@@ -99,6 +100,7 @@ class EbookBuilderGUI(ctk.CTk):
         }
 
         self.mapa_variacoes_atuais = {}
+        self.arquivos_adicionais = []
 
         self._criar_menu_contexto()
         self._construir_interface()
@@ -268,6 +270,29 @@ class EbookBuilderGUI(ctk.CTk):
         entry_destino.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self._adicionar_suporte_clique_direito(entry_destino)
         ctk.CTkButton(box_destino, text="Destino", width=90, command=self._procurar_destino).pack(side="right")
+
+        ctk.CTkLabel(
+            frame_fonte,
+            text="Conteúdos adicionais (serão unidos nesta ordem)",
+            font=ctk.CTkFont(size=12, weight="bold"),
+        ).pack(anchor="w", padx=10, pady=(2, 4))
+        self.lista_conteudos = tk.Listbox(
+            frame_fonte,
+            height=4,
+            selectmode=tk.SINGLE,
+            bg="#0F172A",
+            fg="#E2E8F0",
+            selectbackground="#2563EB",
+            relief="flat",
+            highlightthickness=0,
+        )
+        self.lista_conteudos.pack(fill="x", padx=10, pady=(0, 5))
+        box_conteudos = ctk.CTkFrame(frame_fonte, fg_color="transparent")
+        box_conteudos.pack(fill="x", padx=10, pady=(0, 8))
+        ctk.CTkButton(box_conteudos, text="Adicionar", width=85, command=self._adicionar_conteudos).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(box_conteudos, text="Remover", width=80, command=self._remover_conteudo).pack(side="left", padx=4)
+        ctk.CTkButton(box_conteudos, text="↑", width=35, command=lambda: self._mover_conteudo(-1)).pack(side="left", padx=4)
+        ctk.CTkButton(box_conteudos, text="↓", width=35, command=lambda: self._mover_conteudo(1)).pack(side="left", padx=4)
 
         # 2. TÍTULOS
         frame_titulos = ctk.CTkFrame(aba_projeto)
@@ -468,6 +493,13 @@ class EbookBuilderGUI(ctk.CTk):
             (self.palavras_chave, "palavras_chave"),
         ):
             variable.set(settings.get(key, ""))
+        self.arquivos_adicionais = [
+            str(Path(caminho))
+            for caminho in settings.get("fontes_adicionais", [])
+            if Path(caminho).is_file()
+        ]
+        if hasattr(self, "lista_conteudos"):
+            self._atualizar_lista_conteudos()
         capa = settings.get("capa", "")
         self.caminho_capa_local.set(capa if Path(capa).is_file() else "")
         self.url_capa.set("" if Path(capa).is_file() else capa)
@@ -505,6 +537,7 @@ class EbookBuilderGUI(ctk.CTk):
             "variacao": form.variacao,
             "autor": form.autor,
             "palavras_chave": form.palavras_chave,
+            "fontes_adicionais": list(form.fontes_adicionais),
         }
         self._current_project_id = self.project_manager.save_project(
             nome, settings, project_id=self._current_project_id
@@ -513,6 +546,8 @@ class EbookBuilderGUI(ctk.CTk):
             self.project_manager.add_asset(self._current_project_id, form.origem, "document")
         if form.capa_ativa:
             self.project_manager.add_asset(self._current_project_id, form.capa_ativa, "cover")
+        for caminho in form.fontes_adicionais:
+            self.project_manager.add_asset(self._current_project_id, caminho, "document")
         self._carregar_projetos()
         self.combo_projeto.set(nome)
         self.lbl_status.configure(text="Projeto salvo localmente.", text_color="#10B981")
@@ -520,8 +555,13 @@ class EbookBuilderGUI(ctk.CTk):
     def _atualizar_estrutura(self):
         origem = self.caminho_arquivo_fonte.get().strip()
         if origem:
+            linhas = [f"Capítulos\n  1. {Path(origem).stem}"]
+            linhas.extend(
+                f"  {indice}. {Path(caminho).stem}"
+                for indice, caminho in enumerate(self.arquivos_adicionais, start=2)
+            )
             self.lbl_capitulos.configure(
-                text=f"Capítulos\n  1. {Path(origem).stem}",
+                text="\n".join(linhas),
                 text_color="#E2E8F0",
             )
         else:
@@ -550,6 +590,7 @@ class EbookBuilderGUI(ctk.CTk):
             variacao=self._obter_id_variacao_selecionada(),
             autor=self.autor_ebook.get().strip(),
             palavras_chave=self.palavras_chave.get().strip(),
+            fontes_adicionais=tuple(self.arquivos_adicionais),
         )
 
     def _ao_alterar_tema(self, escolha_tema):
@@ -702,6 +743,55 @@ class EbookBuilderGUI(ctk.CTk):
             except (FileNotFoundError, ValueError) as exc:
                 messagebox.showerror("Destino inválido", str(exc))
 
+    def _atualizar_lista_conteudos(self):
+        self.lista_conteudos.delete(0, tk.END)
+        for caminho in self.arquivos_adicionais:
+            self.lista_conteudos.insert(tk.END, Path(caminho).name)
+        self._atualizar_estrutura()
+
+    def _adicionar_conteudos(self):
+        caminhos = filedialog.askopenfilenames(
+            filetypes=[
+                ("Formatos suportados", "*.md *.markdown *.txt *.docx *.pdf"),
+                ("Todos os arquivos", "*.*"),
+            ]
+        )
+        adicionados = []
+        try:
+            principal = Path(self.caminho_arquivo_fonte.get()).resolve()
+            for caminho in caminhos:
+                fonte = validate_source_file(caminho).resolve()
+                if fonte == principal:
+                    continue
+                if str(fonte) not in self.arquivos_adicionais:
+                    self.arquivos_adicionais.append(str(fonte))
+                    adicionados.append(str(fonte))
+            self._atualizar_lista_conteudos()
+        except (FileNotFoundError, ValueError) as exc:
+            messagebox.showerror("Conteúdo inválido", str(exc))
+
+    def _remover_conteudo(self):
+        selecionados = self.lista_conteudos.curselection()
+        if not selecionados:
+            return
+        del self.arquivos_adicionais[selecionados[0]]
+        self._atualizar_lista_conteudos()
+
+    def _mover_conteudo(self, deslocamento):
+        selecionados = self.lista_conteudos.curselection()
+        if not selecionados:
+            return
+        indice = selecionados[0]
+        novo_indice = indice + deslocamento
+        if not 0 <= novo_indice < len(self.arquivos_adicionais):
+            return
+        self.arquivos_adicionais[indice], self.arquivos_adicionais[novo_indice] = (
+            self.arquivos_adicionais[novo_indice],
+            self.arquivos_adicionais[indice],
+        )
+        self._atualizar_lista_conteudos()
+        self.lista_conteudos.selection_set(novo_indice)
+
     def _procurar_capa_local(self):
         caminho = filedialog.askopenfilename(filetypes=[("Imagens", "*.png *.jpg *.jpeg")])
         if caminho:
@@ -717,6 +807,8 @@ class EbookBuilderGUI(ctk.CTk):
         form = self._build_form_config()
         try:
             fonte = validate_source_file(form.origem)
+            for caminho in form.fontes_adicionais:
+                validate_source_file(caminho)
             caminho_saida = build_output_path(fonte, form.destino or fonte.parent)
         except (FileNotFoundError, ValueError) as exc:
             messagebox.showerror("Não é possível gerar o e-book", str(exc))
@@ -739,6 +831,7 @@ class EbookBuilderGUI(ctk.CTk):
             compiler = EbookCompiler(
                 arquivo_fonte=form.origem,
                 arquivo_saida=saída,
+                arquivos_fonte=form.fontes_adicionais,
                 capa_url=form.capa_ativa,
                 titulo_ebook=form.titulo_ativo,
                 sub_titulo_ebook=form.subtitulo_ativo,

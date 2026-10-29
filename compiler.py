@@ -29,8 +29,14 @@ class EbookCompiler:
         palavras_chave=None,
         assunto="",
         copyright_status="",
+        arquivos_fonte=None,
     ):
         self.arquivo_fonte = os.fspath(arquivo_fonte)
+        fontes_adicionais = arquivos_fonte or []
+        self.arquivos_fonte = [
+            self.arquivo_fonte,
+            *[os.fspath(caminho) for caminho in fontes_adicionais],
+        ]
         self.arquivo_saida = os.fspath(arquivo_saida)
         self.capa_url = os.fspath(capa_url) if capa_url else capa_url
         self.variacao_capa = variacao_capa
@@ -89,19 +95,26 @@ class EbookCompiler:
         return canvas_inst
 
     def _carregar_conteudo(self):
-        if not os.path.exists(self.arquivo_fonte):
-            raise FileNotFoundError(f"Arquivo não encontrado: {self.arquivo_fonte}")
+        conteudo = []
+        for indice, caminho in enumerate(self.arquivos_fonte):
+            if not os.path.exists(caminho):
+                raise FileNotFoundError(f"Arquivo não encontrado: {caminho}")
 
-        extensao = os.path.splitext(self.arquivo_fonte)[1].lower()
-        if extensao == ".txt":
-            with open(self.arquivo_fonte, "r", encoding="utf-8") as f:
-                texto = f.read()
-            return self._parse_markdown(SmartParser.inferir_estrutura(texto))
+            extensao = os.path.splitext(caminho)[1].lower()
+            if extensao == ".txt":
+                with open(caminho, "r", encoding="utf-8") as arquivo:
+                    texto = arquivo.read()
+                flowables = self._parse_markdown(SmartParser.inferir_estrutura(texto))
+            elif extensao in [".md", ".markdown", ".docx", ".pdf"]:
+                flowables = self.document_reader.parse_file(caminho)
+            else:
+                raise ValueError(f"Extensão não suportada: {extensao}")
 
-        if extensao in [".md", ".markdown", ".docx", ".pdf"]:
-            return self.document_reader.parse_file(self.arquivo_fonte)
+            if indice and conteudo:
+                conteudo.append(PageBreak())
+            conteudo.extend(flowables)
 
-        raise ValueError(f"Extensão não suportada: {extensao}")
+        return conteudo
 
     def analisar_documento(self):
         if not os.path.exists(self.arquivo_fonte):
