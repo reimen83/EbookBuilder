@@ -6,7 +6,7 @@ from pathlib import Path
 class PdfPageCache:
     """Cache persistente das páginas rasterizadas de PDFs."""
 
-    VERSION = "1"
+    VERSION = "2"
 
     def __init__(self, cache_dir=None):
         self.cache_dir = Path(cache_dir) if cache_dir else (

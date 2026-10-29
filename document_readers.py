@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 
 from pdf_cache import PdfPageCache
 from reportlab.lib.utils import ImageReader
@@ -171,6 +172,59 @@ class PdfPageImage(Flowable):
 
         resultado.putalpha(imagem.getchannel("A"))
         return resultado
+
+    @staticmethod
+    def melhorar_contraste_se_necessario(image):
+        """Clareia texto escuro em páginas rasterizadas com fundo escuro.
+
+        Alguns PDFs prontos usam uma paleta escura com texto em cinza muito
+        próximo do fundo. Como a página chega como uma única imagem, não é
+        possível corrigir o texto com ParagraphStyle depois da importação.
+        A correção só é aplicada quando há um fundo escuro dominante e muito
+        mais pixels de primeiro plano escuro do que pixels claros.
+        """
+        imagem = image.convert("RGB")
+        amostra = imagem.resize((160, 160))
+        cores = Counter(amostra.getdata())
+        fundo, quantidade_fundo = cores.most_common(1)[0]
+        proporcao_fundo = quantidade_fundo / (160 * 160)
+        luminancia_fundo = (
+            0.2126 * fundo[0] + 0.7152 * fundo[1] + 0.0722 * fundo[2]
+        )
+        if proporcao_fundo < 0.35 or luminancia_fundo >= 80:
+            return image
+
+        pixels_amostra = list(amostra.getdata())
+        luminancias = [
+            0.2126 * vermelho + 0.7152 * verde + 0.0722 * azul
+            for vermelho, verde, azul in pixels_amostra
+        ]
+        pixels_escuros = sum(
+            luminancia_fundo + 5 < valor < luminancia_fundo + 110
+            for valor in luminancias
+        )
+        pixels_claros = sum(valor >= luminancia_fundo + 150 for valor in luminancias)
+        if pixels_escuros < max(80, pixels_claros * 2):
+            return image
+
+        pixels = imagem.load()
+        fator = 7.0
+        largura, altura = imagem.size
+        for y in range(altura):
+            for x in range(largura):
+                vermelho, verde, azul = pixels[x, y]
+                luminancia = (
+                    0.2126 * vermelho + 0.7152 * verde + 0.0722 * azul
+                )
+                if luminancia <= luminancia_fundo + 5:
+                    continue
+                alvo = luminancia_fundo + (luminancia - luminancia_fundo) * fator
+                escala = alvo / luminancia if luminancia else 1
+                pixels[x, y] = tuple(
+                    min(255, int(canal * escala))
+                    for canal in (vermelho, verde, azul)
+                )
+        return imagem
 
     def wrap(self, available_width, available_height):
         scale = min(available_width / self.page_width, available_height / self.page_height)
@@ -357,6 +411,8 @@ class PdfParser(BaseDocumentParser):
             ]
 
         imagem = pagina.to_image(resolution=render_dpi).original
+        if preservar_cores_originais:
+            imagem = PdfPageImage.melhorar_contraste_se_necessario(imagem)
         protected_regions = self._regioes_protegidas(pagina, imagem.size)
         if cache_path is not None:
             imagem = PdfPageImage.recolorir_fundo(

@@ -412,6 +412,18 @@ def test_pdf_page_image_preserva_texto_claro_em_bloco_protegido():
     assert recolorida.getpixel((10, 10))[:3] == (210, 220, 240)
 
 
+def test_pdf_page_image_melhora_contraste_de_texto_escuro():
+    imagem = Image.new("RGB", (160, 160), color=(15, 23, 42))
+    for x in range(20, 140):
+        for y in range(40, 100):
+            imagem.putpixel((x, y), (51, 51, 51))
+
+    corrigida = PdfPageImage.melhorar_contraste_se_necessario(imagem)
+
+    assert corrigida.getpixel((80, 70))[0] > 100
+    assert corrigida.getpixel((0, 0)) == (15, 23, 42)
+
+
 def test_pdf_preservado_usa_renderizacao_de_alta_resolucao():
     from document_readers import PdfParser
 
