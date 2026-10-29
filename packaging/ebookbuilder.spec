@@ -30,6 +30,8 @@ hiddenimports.extend(
     [
         "PIL",
         "PIL.Image",
+        "PIL.ImageTk",
+        "PIL._tkinter_finder",
         "reportlab",
         "pdfminer",
         "pdfminer.high_level",
