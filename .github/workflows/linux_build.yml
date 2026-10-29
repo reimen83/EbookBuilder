@@ -1,0 +1,48 @@
+name: Compilar Executavel Linux
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar codigo do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Instalar dependencias do sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
+      - name: Instalar dependencias Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Gerar executavel com PyInstaller
+        run: |
+          pyinstaller --noconfirm --clean packaging/ebookbuilder.spec
+
+      - name: Compactar executavel Linux
+        run: |
+          tar -C dist -czf EbookBuilder_Linux_x86_64.tar.gz EbookBuilder
+
+      - name: Criar release e anexar artefato
+        uses: softprops/action-gh-release@v2
+        with:
+          files: EbookBuilder_Linux_x86_64.tar.gz
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

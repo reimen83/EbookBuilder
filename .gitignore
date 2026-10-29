@@ -1,7 +1,9 @@
 venv/
 .venv/
+.venv-build/
 build/
 dist/
+*.tar.gz
+*.zip
 *.pyc
 __pycache__/
-*.spec

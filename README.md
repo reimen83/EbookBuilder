@@ -119,6 +119,27 @@ python -m pytest
 
 A suíte de testes cobre o parser de conteúdo, a extração de títulos, os temas e a geração básica de PDF.
 
+## Empacotamento para distribuição
+
+O projeto usa PyInstaller para gerar uma aplicação desktop sem exigir Python instalado na máquina do usuário. A especificação compartilhada fica em `packaging/ebookbuilder.spec`.
+
+Para gerar o build Linux localmente:
+
+```bash
+python -m pip install -r requirements-dev.txt
+pyinstaller --noconfirm --clean packaging/ebookbuilder.spec
+tar -C dist -czf EbookBuilder_Linux_x86_64.tar.gz EbookBuilder
+```
+
+Para Windows, execute o mesmo comando PyInstaller em uma máquina Windows ou use o workflow do GitHub Actions. O executável não deve ser gerado por cross-compilação: PyInstaller deve rodar no sistema operacional de destino.
+
+Ao publicar uma tag no formato `v*`, os workflows geram automaticamente:
+
+- `EbookBuilder_Linux_x86_64.tar.gz`;
+- `EbookBuilder_Windows_x86_64.zip`.
+
+Os dois arquivos são anexados à release correspondente no GitHub.
+
 ## Dependências principais
 
 - Python 3
