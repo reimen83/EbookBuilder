@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    # Compilar em uma base mais antiga evita exigir a glibc do ubuntu-latest.
+    # O binário deve ser construído no sistema mais antigo que queremos suportar.
+    runs-on: ubuntu-22.04
     steps:
       - name: Baixar codigo do repositorio
         uses: actions/checkout@v4

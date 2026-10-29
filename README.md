@@ -140,6 +140,11 @@ Ao publicar uma tag no formato `v*`, os workflows geram automaticamente:
 
 Os dois arquivos são anexados à release correspondente no GitHub.
 
+O build Linux é realizado em Ubuntu 22.04 para manter compatibilidade com
+distribuições que possuem uma versão de glibc anterior à usada no Ubuntu mais
+recente. Em geral, um binário Linux deve ser compilado na distribuição mais
+antiga que se pretende suportar.
+
 ## Dependências principais
 
 - Python 3
