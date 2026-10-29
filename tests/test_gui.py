@@ -1,5 +1,8 @@
 from types import SimpleNamespace
 
+from PIL import Image
+
+import gui as gui_module
 from gui import EbookBuilderGUI
 from preview_state import build_preview_signature
 
@@ -57,3 +60,23 @@ def test_preview_signature_muda_quando_a_capa_muda():
     )
 
     assert sem_capa != com_capa
+
+
+def test_aplicar_preview_configura_ctk_image_publico(monkeypatch):
+    configuracoes = []
+    imagem_ctk = object()
+
+    class LabelFalso:
+        def configure(self, **kwargs):
+            configuracoes.append(kwargs)
+
+    gui = object.__new__(EbookBuilderGUI)
+    gui._preview_generation = 1
+    gui.lbl_imagem_preview = LabelFalso()
+    gui.preview_ctk_image = None
+
+    monkeypatch.setattr(gui_module.ctk, "CTkImage", lambda **kwargs: imagem_ctk)
+    gui._aplicar_preview(1, Image.new("RGB", (80, 120), "navy"))
+
+    assert gui.preview_ctk_image is imagem_ctk
+    assert configuracoes[-1] == {"image": imagem_ctk, "text": ""}

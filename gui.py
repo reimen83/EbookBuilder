@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import customtkinter as ctk
-from PIL import Image, ImageTk
+from PIL import Image
 
 from compiler import EbookCompiler, ThemeEngine
 from app.data.project_manager import ProjectManager
@@ -81,7 +81,6 @@ class EbookBuilderGUI(ctk.CTk):
         self._project_selector_values = {}
 
         self.preview_ctk_image = None
-        self.preview_tk_image = None
         self._preview_generation = 0
         self._preview_signature = None
         self._preview_thread = None
@@ -648,15 +647,21 @@ class EbookBuilderGUI(ctk.CTk):
                 text="Nenhuma imagem de capa foi gerada.",
                 image=None,
             )
-            self.preview_tk_image = None
+            self.preview_ctk_image = None
             return
 
         imagem.thumbnail((PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT), Image.Resampling.LANCZOS)
-        # Remove a imagem anterior antes de liberar sua referência Tk.
-        self.lbl_imagem_preview.configure(image=None)
-        label_tk = self.lbl_imagem_preview._label
-        self.preview_tk_image = ImageTk.PhotoImage(imagem, master=label_tk)
-        label_tk.configure(image=self.preview_tk_image, text="")
+        # CTkImage é o caminho suportado pelo CustomTkinter e mantém a
+        # referência necessária para que a imagem não desapareça após o callback.
+        self.preview_ctk_image = ctk.CTkImage(
+            light_image=imagem,
+            dark_image=imagem,
+            size=(imagem.width, imagem.height),
+        )
+        self.lbl_imagem_preview.configure(
+            image=self.preview_ctk_image,
+            text="",
+        )
 
     def _preview_erro(self, generation, mensagem):
         if generation != self._preview_generation:
@@ -665,7 +670,7 @@ class EbookBuilderGUI(ctk.CTk):
             text=f"❌ Erro ao gerar capa:\n{mensagem}",
             image=None,
         )
-        self.preview_tk_image = None
+        self.preview_ctk_image = None
 
     def _procurar_fonte(self):
         caminho = filedialog.askopenfilename(filetypes=[("Todos os Formatos Suportados", "*.md *.docx *.pdf *.txt")])
