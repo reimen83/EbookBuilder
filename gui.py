@@ -85,6 +85,7 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_signature = None
         self._preview_thread = None
         self._preview_results = Queue()
+        self._compilation_results = Queue()
 
         self.mapa_temas = {
             "🎛️ Produção Musical (Studio Dark)": "music_prod",
@@ -106,6 +107,7 @@ class EbookBuilderGUI(ctk.CTk):
         self.bind_all("<Button-5>", self._rolar_configuracoes, add="+")
         self.bind("<Button-1>", lambda event: self._fechar_menu_contexto())
         self.after(50, self._processar_resultados_preview)
+        self.after(50, self._processar_resultados_compilacao)
 
     def _criar_menu_contexto(self):
         self.menu_contexto = tk.Menu(self, tearoff=0)
@@ -586,9 +588,9 @@ class EbookBuilderGUI(ctk.CTk):
         self._preview_generation += 1
         generation = self._preview_generation
 
+        self._limpar_imagem_preview()
         self.lbl_imagem_preview.configure(
             text="⏳ Gerando preview da capa...",
-            image=None,
         )
 
         self._preview_thread = threading.Thread(
@@ -597,6 +599,16 @@ class EbookBuilderGUI(ctk.CTk):
             daemon=True,
         )
         self._preview_thread.start()
+
+    def _limpar_imagem_preview(self):
+        """Remove a PhotoImage interna antes de liberar a referência CTkImage."""
+        label_tk = getattr(self.lbl_imagem_preview, "_label", None)
+        if label_tk is not None:
+            label_tk.configure(image="")
+        else:
+            # Fallback para doubles de teste ou versões futuras do CustomTkinter.
+            self.lbl_imagem_preview.configure(image=None)
+        self.preview_ctk_image = None
 
     def _gerar_preview_bg(self, generation, config):
         if generation != self._preview_generation:
@@ -643,11 +655,10 @@ class EbookBuilderGUI(ctk.CTk):
         if generation != self._preview_generation:
             return
         if imagem is None:
+            self._limpar_imagem_preview()
             self.lbl_imagem_preview.configure(
                 text="Nenhuma imagem de capa foi gerada.",
-                image=None,
             )
-            self.preview_ctk_image = None
             return
 
         imagem.thumbnail((PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT), Image.Resampling.LANCZOS)
@@ -666,11 +677,10 @@ class EbookBuilderGUI(ctk.CTk):
     def _preview_erro(self, generation, mensagem):
         if generation != self._preview_generation:
             return
+        self._limpar_imagem_preview()
         self.lbl_imagem_preview.configure(
             text=f"❌ Erro ao gerar capa:\n{mensagem}",
-            image=None,
         )
-        self.preview_ctk_image = None
 
     def _procurar_fonte(self):
         caminho = filedialog.askopenfilename(filetypes=[("Todos os Formatos Suportados", "*.md *.docx *.pdf *.txt")])
@@ -751,10 +761,11 @@ class EbookBuilderGUI(ctk.CTk):
                 avisos.append(
                     f"{analise['colunas_detectadas']} página(s) com duas colunas detectadas"
                 )
-            self.after(
-                0,
-                self._atualizar_diagnostico,
-                " • ".join(avisos) or "Estrutura simples detectada",
+            self._compilation_results.put(
+                (
+                    "diagnostico",
+                    " • ".join(avisos) or "Estrutura simples detectada",
+                )
             )
             relatorio = compiler.compilar(analise)
             try:
@@ -773,10 +784,26 @@ class EbookBuilderGUI(ctk.CTk):
                 )
             except Exception:
                 traceback.print_exc()
-            self.after(0, self._compilacao_sucesso, form, saída, relatorio)
+            self._compilation_results.put(("sucesso", form, saída, relatorio))
         except Exception as e:
             traceback.print_exc()
-            self.after(0, self._compilacao_erro, str(e))
+            self._compilation_results.put(("erro", str(e)))
+
+    def _processar_resultados_compilacao(self):
+        try:
+            while True:
+                resultado = self._compilation_results.get_nowait()
+                tipo = resultado[0]
+                if tipo == "diagnostico":
+                    self._atualizar_diagnostico(resultado[1])
+                elif tipo == "sucesso":
+                    self._compilacao_sucesso(resultado[1], resultado[2], resultado[3])
+                elif tipo == "erro":
+                    self._compilacao_erro(resultado[1])
+        except Empty:
+            pass
+        finally:
+            self.after(50, self._processar_resultados_compilacao)
 
     def _atualizar_diagnostico(self, mensagem):
         self.lbl_status.configure(

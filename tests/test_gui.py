@@ -80,3 +80,24 @@ def test_aplicar_preview_configura_ctk_image_publico(monkeypatch):
 
     assert gui.preview_ctk_image is imagem_ctk
     assert configuracoes[-1] == {"image": imagem_ctk, "text": ""}
+
+
+def test_aplicar_preview_limpa_imagem_sem_usar_none():
+    configuracoes = []
+
+    class LabelFalso:
+        def configure(self, **kwargs):
+            configuracoes.append(kwargs)
+
+    gui = object.__new__(EbookBuilderGUI)
+    gui._preview_generation = 1
+    gui.lbl_imagem_preview = LabelFalso()
+    gui.preview_ctk_image = object()
+
+    gui._aplicar_preview(1, None)
+
+    assert gui.preview_ctk_image is None
+    assert configuracoes == [
+        {"image": None},
+        {"text": "Nenhuma imagem de capa foi gerada."},
+    ]
