@@ -32,15 +32,14 @@ O EbookBuilder foi projetado para processamento local: os arquivos do usuário n
 O projeto também possui uma base modular em `app/`, organizada em:
 
 - `app/core`: flowables de callout, CTA e mockups de dispositivos;
-- `app/data`: persistência local SQLite de projetos, ativos e versões;
+- `app/data`: módulo opcional de persistência local SQLite de projetos, ativos e versões;
 - `app/utils`: metadados padrão e XMP para os PDFs exportados.
 
-O banco local fica em `~/.ebookbuilder/projects.db`. Nenhum conteúdo do projeto
-é enviado para serviços externos. A interface evolui gradualmente para um
-dashboard de três painéis: a sidebar mantém o projeto, capítulos e ativos; o
-canvas central exibe o preview visual; e o Inspector reúne propriedades como
-autor e palavras-chave. O fluxo de configuração e compilação anterior continua
-disponível como fallback durante essa evolução.
+O módulo de persistência permanece disponível para compatibilidade e futuras
+extensões, mas a interface atual não cria, carrega ou salva projetos em SQLite.
+Nenhum conteúdo é enviado para serviços externos. O dashboard de três painéis
+mantém a configuração do e-book e capítulos na sidebar, exibe o preview visual
+no canvas central e reúne propriedades como autor e palavras-chave no Inspector.
 - Aplicação da cor de fundo do tema escolhido nas páginas preservadas, com proteção
   automática de caixas e blocos decorativos.
 - Execução como aplicação desktop no Linux e no Windows.

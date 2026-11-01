@@ -11,7 +11,6 @@ import customtkinter as ctk
 from PIL import Image
 
 from compiler import EbookCompiler, ThemeEngine
-from app.data.project_manager import ProjectManager
 from preview_state import build_preview_signature
 from validation import (
     build_output_path,
@@ -77,10 +76,6 @@ class EbookBuilderGUI(ctk.CTk):
         self.url_capa = tk.StringVar()
         self.autor_ebook = tk.StringVar()
         self.palavras_chave = tk.StringVar()
-        self.project_manager = ProjectManager()
-        self._current_project_id = None
-        self._project_selector_values = {}
-
         self.preview_ctk_image = None
         self._preview_generation = 0
         self._preview_signature = None
@@ -104,7 +99,6 @@ class EbookBuilderGUI(ctk.CTk):
 
         self._criar_menu_contexto()
         self._construir_interface()
-        self._carregar_projetos()
         self.bind_all("<Button-4>", self._rolar_configuracoes, add="+")
         self.bind_all("<Button-5>", self._rolar_configuracoes, add="+")
         self.bind("<Button-1>", lambda event: self._fechar_menu_contexto())
@@ -195,31 +189,12 @@ class EbookBuilderGUI(ctk.CTk):
         lbl_subtitulo = ctk.CTkLabel(frame_esquerda, text="Transforme textos em e-books estilizados e diagramados.", font=ctk.CTkFont(size=12), text_color="#94A3B8")
         lbl_subtitulo.pack(anchor="w", padx=10, pady=(0, 10))
 
-        frame_projeto_atual = ctk.CTkFrame(frame_esquerda)
-        frame_projeto_atual.pack(fill="x", padx=5, pady=(0, 6))
-        ctk.CTkLabel(
-            frame_projeto_atual,
-            text="Projeto atual",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).pack(anchor="w", padx=10, pady=(8, 4))
-        self.combo_projeto = ctk.CTkOptionMenu(
-            frame_projeto_atual,
-            values=["Novo projeto"],
-            command=self._ao_selecionar_projeto,
-        )
-        self.combo_projeto.pack(fill="x", padx=10, pady=(0, 6))
-        ctk.CTkButton(
-            frame_projeto_atual,
-            text="Salvar projeto",
-            command=self._salvar_projeto_atual,
-        ).pack(fill="x", padx=10, pady=(0, 8))
-
         self.frame_estrutura = ctk.CTkFrame(frame_esquerda, height=120)
         self.frame_estrutura.pack_propagate(False)
         self.frame_estrutura.pack(fill="x", padx=5, pady=(0, 6))
         ctk.CTkLabel(
             self.frame_estrutura,
-            text="Estrutura e biblioteca de ativos",
+            text="Estrutura do e-book",
             font=ctk.CTkFont(size=12, weight="bold"),
         ).pack(anchor="w", padx=4, pady=(2, 4))
         self.lbl_capitulos = ctk.CTkLabel(
@@ -229,18 +204,10 @@ class EbookBuilderGUI(ctk.CTk):
             text_color="#94A3B8",
         )
         self.lbl_capitulos.pack(anchor="w", padx=4, pady=2)
-        self.lbl_ativos = ctk.CTkLabel(
-            self.frame_estrutura,
-            text="Ativos\n  Nenhum ativo registrado",
-            justify="left",
-            text_color="#94A3B8",
-        )
-        self.lbl_ativos.pack(anchor="w", padx=4, pady=2)
-
         abas = ctk.CTkTabview(frame_esquerda)
         abas.pack(fill="both", expand=True, padx=5, pady=(0, 8))
         aba_projeto = ctk.CTkScrollableFrame(
-            abas.add("Projeto"),
+            abas.add("Configuração"),
             scrollbar_button_color="#64748B",
             scrollbar_button_hover_color="#94A3B8",
         )
@@ -419,7 +386,7 @@ class EbookBuilderGUI(ctk.CTk):
         ).pack(anchor="w", padx=15, pady=(15, 2))
         ctk.CTkLabel(
             frame_inspector,
-            text="Propriedades do projeto e metadados do PDF",
+            text="Configurações e metadados do PDF",
             text_color="#94A3B8",
             wraplength=210,
         ).pack(anchor="w", padx=15, pady=(0, 18))
@@ -452,7 +419,7 @@ class EbookBuilderGUI(ctk.CTk):
             variable.trace_add("write", self._ao_alterar_configuracao)
         self.lbl_inspector = ctk.CTkLabel(
             frame_inspector,
-            text="Selecione um campo para editar as propriedades do projeto.",
+            text="Selecione um campo para editar as configurações do e-book.",
             text_color="#94A3B8",
             wraplength=210,
             justify="left",
@@ -462,95 +429,6 @@ class EbookBuilderGUI(ctk.CTk):
     def _ao_alterar_configuracao(self, *_args):
         if hasattr(self, "lbl_capitulos"):
             self._atualizar_estrutura()
-
-    def _carregar_projetos(self):
-        projetos = self.project_manager.list_projects()
-        self._project_selector_values = {
-            projeto["name"]: projeto["id"] for projeto in projetos
-        }
-        nomes = list(self._project_selector_values) or ["Novo projeto"]
-        self.combo_projeto.configure(values=nomes)
-        self.combo_projeto.set(nomes[0])
-        if projetos:
-            self._current_project_id = projetos[0]["id"]
-            self._atualizar_estrutura()
-
-    def _ao_selecionar_projeto(self, nome):
-        project_id = self._project_selector_values.get(nome)
-        if project_id is None:
-            return
-        projeto = self.project_manager.get_project(project_id)
-        if projeto is None:
-            return
-        self._current_project_id = project_id
-        settings = projeto["settings"]
-        for variable, key in (
-            (self.caminho_arquivo_fonte, "origem"),
-            (self.pasta_destino, "destino"),
-            (self.titulo_ebook, "titulo"),
-            (self.sub_titulo_ebook, "subtitulo"),
-            (self.autor_ebook, "autor"),
-            (self.palavras_chave, "palavras_chave"),
-        ):
-            variable.set(settings.get(key, ""))
-        self.arquivos_adicionais = [
-            str(Path(caminho))
-            for caminho in settings.get("fontes_adicionais", [])
-            if Path(caminho).is_file()
-        ]
-        if hasattr(self, "lista_conteudos"):
-            self._atualizar_lista_conteudos()
-        capa = settings.get("capa", "")
-        self.caminho_capa_local.set(capa if Path(capa).is_file() else "")
-        self.url_capa.set("" if Path(capa).is_file() else capa)
-        tema = settings.get("tema", DEFAULT_THEME)
-        tema_nome = next(
-            (nome for nome, identificador in self.mapa_temas.items() if identificador == tema),
-            self.combo_tema.get(),
-        )
-        self.combo_tema.set(tema_nome)
-        self._atualizar_opcoes_variacao(tema)
-        variacao = settings.get("variacao")
-        if variacao:
-            variacao_nome = next(
-                (
-                    nome
-                    for nome, identificador in self.mapa_variacoes_atuais.items()
-                    if identificador == variacao
-                ),
-                None,
-            )
-            if variacao_nome:
-                self.combo_variacao.set(variacao_nome)
-        self._atualizar_estrutura()
-
-    def _salvar_projeto_atual(self):
-        form = self._build_form_config()
-        nome = Path(form.origem).stem if form.origem else "Novo projeto"
-        settings = {
-            "origem": form.origem,
-            "destino": form.destino,
-            "titulo": form.titulo_ativo,
-            "subtitulo": form.subtitulo_ativo,
-            "capa": form.capa_ativa,
-            "tema": form.tema_ativo,
-            "variacao": form.variacao,
-            "autor": form.autor,
-            "palavras_chave": form.palavras_chave,
-            "fontes_adicionais": list(form.fontes_adicionais),
-        }
-        self._current_project_id = self.project_manager.save_project(
-            nome, settings, project_id=self._current_project_id
-        )
-        if form.origem:
-            self.project_manager.add_asset(self._current_project_id, form.origem, "document")
-        if form.capa_ativa:
-            self.project_manager.add_asset(self._current_project_id, form.capa_ativa, "cover")
-        for caminho in form.fontes_adicionais:
-            self.project_manager.add_asset(self._current_project_id, caminho, "document")
-        self._carregar_projetos()
-        self.combo_projeto.set(nome)
-        self.lbl_status.configure(text="Projeto salvo localmente.", text_color="#10B981")
 
     def _atualizar_estrutura(self):
         origem = self.caminho_arquivo_fonte.get().strip()
@@ -569,13 +447,6 @@ class EbookBuilderGUI(ctk.CTk):
                 text="Capítulos\n  Nenhum documento selecionado",
                 text_color="#94A3B8",
             )
-        if self._current_project_id is None:
-            self.lbl_ativos.configure(text="Ativos\n  Nenhum ativo registrado")
-            return
-        assets = self.project_manager.list_assets(self._current_project_id)
-        linhas = ["Ativos"] + [f"  • {Path(asset['path']).name}" for asset in assets]
-        self.lbl_ativos.configure(text="\n".join(linhas), text_color="#E2E8F0")
-
     def _tema_ativo(self):
         return self.mapa_temas.get(self.combo_tema.get(), DEFAULT_THEME)
 
@@ -861,22 +732,6 @@ class EbookBuilderGUI(ctk.CTk):
                 )
             )
             relatorio = compiler.compilar(analise)
-            try:
-                self.project_manager.save_project(
-                    Path(form.origem).stem,
-                    {
-                        "origem": form.origem,
-                        "destino": saída,
-                        "titulo": form.titulo_ativo,
-                        "subtitulo": form.subtitulo_ativo,
-                        "tema": form.tema_ativo,
-                        "variacao": form.variacao,
-                        "autor": form.autor,
-                        "palavras_chave": form.palavras_chave,
-                    },
-                )
-            except Exception:
-                traceback.print_exc()
             self._compilation_results.put(("sucesso", form, saída, relatorio))
         except Exception as e:
             traceback.print_exc()
