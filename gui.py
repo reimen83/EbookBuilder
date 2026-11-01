@@ -414,11 +414,15 @@ class EbookBuilderGUI(ctk.CTk):
         ).pack(anchor="w", padx=15, pady=(15, 2))
         ctk.CTkLabel(
             frame_inspector,
-            text="Configurações e metadados do PDF",
+            text="Metadados do documento PDF",
             text_color="#94A3B8",
             wraplength=210,
         ).pack(anchor="w", padx=15, pady=(0, 18))
-        ctk.CTkLabel(frame_inspector, text="Autor").pack(anchor="w", padx=15)
+        ctk.CTkLabel(
+            frame_inspector,
+            text="Autor: metadado e texto do rodapé",
+            font=ctk.CTkFont(size=11, weight="bold"),
+        ).pack(anchor="w", padx=15)
         self.entry_autor = ctk.CTkEntry(
             frame_inspector,
             textvariable=self.autor_ebook,
@@ -426,7 +430,11 @@ class EbookBuilderGUI(ctk.CTk):
         )
         self.entry_autor.pack(fill="x", padx=15, pady=(4, 12))
         self._adicionar_suporte_clique_direito(self.entry_autor)
-        ctk.CTkLabel(frame_inspector, text="Palavras-chave").pack(anchor="w", padx=15)
+        ctk.CTkLabel(
+            frame_inspector,
+            text="Palavras-chave: somente nos metadados",
+            font=ctk.CTkFont(size=11, weight="bold"),
+        ).pack(anchor="w", padx=15)
         self.entry_palavras_chave = ctk.CTkEntry(
             frame_inspector,
             textvariable=self.palavras_chave,
@@ -447,7 +455,7 @@ class EbookBuilderGUI(ctk.CTk):
             variable.trace_add("write", self._ao_alterar_configuracao)
         self.lbl_inspector = ctk.CTkLabel(
             frame_inspector,
-            text="Selecione um campo para editar as configurações do e-book.",
+            text="O autor aparece no rodapé de cada página. As palavras-chave ficam apenas nos metadados do PDF.",
             text_color="#94A3B8",
             wraplength=210,
             justify="left",
