@@ -300,14 +300,42 @@ class EbookBuilderGUI(ctk.CTk):
         frame_capa = ctk.CTkFrame(aba_aparencia)
         frame_capa.pack(fill="x", padx=5, pady=6)
         ctk.CTkLabel(frame_capa, text="3. Imagem de Capa Personalizada (Opcional)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=(8, 4))
+        ctk.CTkLabel(
+            frame_capa,
+            text="Escolha uma das opções abaixo. Se deixar ambas vazias, será usada uma capa do tema.",
+            font=ctk.CTkFont(size=11),
+            text_color="#94A3B8",
+            wraplength=430,
+            justify="left",
+        ).pack(anchor="w", padx=10, pady=(0, 6))
 
-        entry_url = ctk.CTkEntry(frame_capa, textvariable=self.url_capa, placeholder_text="URL da imagem (opcional)...")
+        ctk.CTkLabel(
+            frame_capa,
+            text="Capa online — cole aqui a URL direta da imagem:",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#CBD5E1",
+        ).pack(anchor="w", padx=10, pady=(2, 2))
+        entry_url = ctk.CTkEntry(
+            frame_capa,
+            textvariable=self.url_capa,
+            placeholder_text="Ex.: https://site.com/imagem-da-capa.jpg",
+        )
         entry_url.pack(fill="x", padx=10, pady=(0, 6))
         self._adicionar_suporte_clique_direito(entry_url)
 
+        ctk.CTkLabel(
+            frame_capa,
+            text="Capa local — selecione uma imagem salva no seu computador:",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#CBD5E1",
+        ).pack(anchor="w", padx=10, pady=(2, 2))
         box_capa_local = ctk.CTkFrame(frame_capa, fg_color="transparent")
         box_capa_local.pack(fill="x", padx=10, pady=(0, 8))
-        entry_capa_local = ctk.CTkEntry(box_capa_local, textvariable=self.caminho_capa_local, placeholder_text="Imagem local (opcional)...")
+        entry_capa_local = ctk.CTkEntry(
+            box_capa_local,
+            textvariable=self.caminho_capa_local,
+            placeholder_text="Caminho do arquivo de imagem...",
+        )
         entry_capa_local.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self._adicionar_suporte_clique_direito(entry_capa_local)
         ctk.CTkButton(box_capa_local, text="Procurar", width=90, command=self._procurar_capa_local).pack(side="right")
